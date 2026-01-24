@@ -23,7 +23,7 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
   claude: {
     id: 'claude',
     displayName: 'Claude Code',
-    componentTypes: ['skill', 'hook', 'memory', 'agent', 'config'],
+    componentTypes: ['skill', 'hook', 'memory', 'rule', 'agent', 'config'],
     fileExtension: '.md',
     configLocations: {
       project: '.claude/skills',
@@ -33,7 +33,7 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
   windsurf: {
     id: 'windsurf',
     displayName: 'Windsurf (Cascade)',
-    componentTypes: ['workflow', 'rule', 'memory', 'config'],
+    componentTypes: ['skill', 'workflow', 'rule', 'memory', 'config'],
     fileExtension: '.md',
     configLocations: {
       project: '.windsurf/workflows',
@@ -43,21 +43,41 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
   cursor: {
     id: 'cursor',
     displayName: 'Cursor',
-    componentTypes: ['command', 'config'],
+    componentTypes: ['command', 'rule', 'memory', 'config'],
     fileExtension: '.md',
     configLocations: {
       project: '.cursor/commands',
       user: '~/.cursor/commands',
     },
   },
+  gemini: {
+    id: 'gemini',
+    displayName: 'Gemini CLI',
+    componentTypes: ['memory', 'config'],
+    fileExtension: '.md',
+    configLocations: {
+      project: '.',
+      user: '~/.gemini',
+    },
+  },
+  universal: {
+    id: 'universal',
+    displayName: 'Universal (AGENTS.md)',
+    componentTypes: ['memory'],
+    fileExtension: '.md',
+    configLocations: {
+      project: '.',
+      user: '~',
+    },
+  },
   opencode: {
     id: 'opencode',
     displayName: 'OpenCode',
-    componentTypes: ['command', 'config'],
+    componentTypes: ['skill', 'command', 'memory', 'agent', 'config'],
     fileExtension: '.md',
     configLocations: {
-      project: '.opencode/commands',
-      user: '~/.opencode/commands',
+      project: '.opencode',
+      user: '~/.config/opencode',
     },
   },
   aider: {
@@ -128,7 +148,7 @@ export const COMPONENT_TYPE_EQUIVALENTS: Record<ComponentType, Partial<Record<Ag
 
 export const DEFAULT_VERSION = { major: 1, minor: 0, patch: 0 };
 
-export const SUPPORTED_AGENTS: AgentId[] = ['claude', 'windsurf', 'cursor'];
+export const SUPPORTED_AGENTS: AgentId[] = ['claude', 'windsurf', 'cursor', 'opencode', 'gemini', 'universal'];
 
 // ============================================================================
 // File Patterns
@@ -138,16 +158,31 @@ export const AGENT_FILE_PATTERNS: Record<AgentId, RegExp[]> = {
   claude: [
     /\.claude\/skills\/.*\/SKILL\.md$/,
     /\.claude\/commands\/.*\.md$/,
+    /CLAUDE\.md$/,
+    /CLAUDE\.local\.md$/,
+    /\.claude\/rules\/.*\.md$/,
   ],
   windsurf: [
     /\.windsurf\/workflows\/.*\.md$/,
     /\.windsurf\/rules\/.*\.md$/,
+    /\.windsurf\/skills\/.*\/SKILL\.md$/,
   ],
   cursor: [
     /\.cursor\/commands\/.*\.md$/,
+    /\.cursor\/rules\/.*\.mdc?$/,
+  ],
+  gemini: [
+    /GEMINI\.md$/,
+    /\.gemini\/GEMINI\.md$/,
+  ],
+  universal: [
+    /AGENTS\.md$/,
   ],
   opencode: [
+    /\.opencode\/skills\/.*\/SKILL\.md$/,
     /\.opencode\/commands\/.*\.md$/,
+    /\.opencode\/agents\/.*\.md$/,
+    /AGENTS\.md$/,
   ],
   aider: [
     /\.aider\/commands\/.*\.md$/,

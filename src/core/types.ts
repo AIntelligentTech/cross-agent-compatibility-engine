@@ -7,7 +7,7 @@
 // Agent Identifiers
 // ============================================================================
 
-export type AgentId = 'claude' | 'windsurf' | 'cursor' | 'opencode' | 'aider' | 'continue';
+export type AgentId = 'claude' | 'windsurf' | 'cursor' | 'gemini' | 'universal' | 'opencode' | 'aider' | 'continue';
 
 export interface AgentDescriptor {
   id: AgentId;
@@ -312,4 +312,65 @@ export interface RenderResult {
   filename?: string;
   errors: string[];
   report?: ConversionReport;
+}
+
+// ============================================================================
+// Memory/Context File Types (Extended)
+// ============================================================================
+
+export type ScopeLevel = 'system' | 'user' | 'project' | 'local';
+
+export interface ImportSpec {
+  path: string;
+  type: 'file' | 'url' | 'package';
+  resolved?: string;
+  optional?: boolean;
+}
+
+export interface RuleActivation {
+  globs?: string[];
+  paths?: string[];
+  alwaysApply: boolean;
+  agentDecided: boolean;
+  description?: string;
+  scope: ScopeLevel;
+}
+
+export type HookEvent =
+  | 'PreToolUse' | 'PostToolUse' | 'Stop' | 'SubagentStop'
+  | 'SessionStart' | 'SessionEnd' | 'UserPromptSubmit'
+  | 'Notification' | 'PreCompact' | 'Setup' | 'PermissionRequest'
+  | 'pre_read_code' | 'post_read_code'
+  | 'pre_write_code' | 'post_write_code'
+  | 'pre_run_command' | 'post_run_command'
+  | 'pre_mcp_tool_use' | 'post_mcp_tool_use'
+  | 'pre_user_prompt' | 'post_cascade_response'
+  | 'post_setup_worktree';
+
+export interface HookSpec {
+  event: HookEvent;
+  matcher?: string;
+  command: string;
+  timeout?: number;
+  workingDirectory?: string;
+}
+
+export interface MemorySpec {
+  imports?: ImportSpec[];
+  scope: ScopeLevel;
+  hierarchical: boolean;
+  sections?: MemorySection[];
+}
+
+export interface MemorySection {
+  title: string;
+  content: string;
+  level: number;
+}
+
+// Extended ComponentSpec fields (optional, for memory/rule/hook types)
+export interface ExtendedComponentFields {
+  memorySpec?: MemorySpec;
+  ruleActivation?: RuleActivation;
+  hooks?: HookSpec[];
 }

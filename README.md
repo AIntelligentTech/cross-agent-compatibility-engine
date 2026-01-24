@@ -15,9 +15,35 @@ A comprehensive, flexible, version-aware cross-agent compatibility engine for bi
 
 | Agent | Component Types | Status |
 |-------|----------------|--------|
-| **Claude Code** | skill, hook, memory, agent, config | ✅ Full support |
-| **Windsurf (Cascade)** | workflow, rule, memory, config | ✅ Full support |
-| **Cursor** | command, config | ✅ Full support |
+| **Claude Code** | skill, hook, memory, rule, agent, config | ✅ Full support |
+| **Windsurf (Cascade)** | skill, workflow, rule, memory, config | ✅ Full support |
+| **Cursor** | command, rule, memory, config | ✅ Full support |
+| **Gemini CLI** | memory, config | ✅ Full support |
+| **Universal (AGENTS.md)** | memory | ✅ Full support |
+
+## Memory File Support
+
+The engine now supports parsing and converting agent memory/context files:
+
+| File Type | Agent | Description |
+|-----------|-------|-------------|
+| `AGENTS.md` | Universal | Cross-agent standard (60k+ projects) |
+| `CLAUDE.md` | Claude Code | Project context with @imports |
+| `CLAUDE.local.md` | Claude Code | Local overrides (gitignored) |
+| `.claude/rules/*.md` | Claude Code | Path-specific rules |
+| `GEMINI.md` | Gemini CLI | Project context |
+
+### Memory File Conversion
+
+```bash
+# Convert CLAUDE.md to universal AGENTS.md
+cace convert CLAUDE.md --to universal
+
+# Convert AGENTS.md to Claude format
+cace convert AGENTS.md --to claude
+```
+
+**Note:** Claude's `@import` syntax is not supported in AGENTS.md. When converting, imports are flagged for manual resolution.
 
 ## Installation
 
@@ -153,7 +179,7 @@ const result = transform(sourceContent, {
 if (result.success) {
   console.log(result.output);
   console.log(`Fidelity: ${result.fidelityScore}%`);
-}
+Ca
 
 // Parse only
 const parseResult = parseComponent(content, { agentId: 'claude' });
