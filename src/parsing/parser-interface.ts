@@ -2,12 +2,15 @@
  * Parser interface and base implementation
  */
 
-import type { AgentId, ComponentSpec, ParseResult } from '../core/types.js';
+import type { AgentId, ComponentSpec, ParseResult } from "../core/types.js";
+import type { VersionDetectionResult } from "../versioning/types.js";
 
 export interface ParserOptions {
   strict?: boolean;
   inferCapabilities?: boolean;
   sourceFile?: string;
+  /** Explicit source version (overrides detection) */
+  sourceVersion?: string;
 }
 
 export interface AgentParser {
@@ -17,7 +20,11 @@ export interface AgentParser {
 
   canParse(content: string, filename?: string): boolean;
 
-  detectVersion(content: string): string | undefined;
+  /**
+   * Detect the version of the content
+   * Returns a VersionDetectionResult with version, confidence, and matched markers
+   */
+  detectVersion(content: string, filePath?: string): VersionDetectionResult;
 }
 
 export abstract class BaseParser implements AgentParser {
@@ -27,8 +34,16 @@ export abstract class BaseParser implements AgentParser {
 
   abstract canParse(content: string, filename?: string): boolean;
 
-  detectVersion(_content: string): string | undefined {
-    return undefined;
+  /**
+   * Default version detection - subclasses should override
+   */
+  detectVersion(_content: string, _filePath?: string): VersionDetectionResult {
+    return {
+      version: "1.0",
+      confidence: 30,
+      matchedMarkers: [],
+      isDefinitive: false,
+    };
   }
 
   protected createErrorResult(errors: string[]): ParseResult {
@@ -39,7 +54,10 @@ export abstract class BaseParser implements AgentParser {
     };
   }
 
-  protected createSuccessResult(spec: ComponentSpec, warnings: string[] = []): ParseResult {
+  protected createSuccessResult(
+    spec: ComponentSpec,
+    warnings: string[] = [],
+  ): ParseResult {
     return {
       success: true,
       spec,

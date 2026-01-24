@@ -1,11 +1,15 @@
 # Cross-Agent Compatibility Engine (CACE)
 
-A comprehensive, flexible, version-aware cross-agent compatibility engine for bidirectional conversion of agent components between Claude Code, Windsurf (Cascade), and Cursor.
+A comprehensive, flexible, version-aware cross-agent compatibility engine for
+bidirectional conversion of agent components between Claude Code, Windsurf
+(Cascade), and Cursor.
 
 ## Features
 
-- **Parse** any agent-specific component (skill, workflow, command) from its native format
-- **Normalize** into a canonical, agent-agnostic intermediate representation (IR)
+- **Parse** any agent-specific component (skill, workflow, command) from its
+  native format
+- **Normalize** into a canonical, agent-agnostic intermediate representation
+  (IR)
 - **Transform** bidirectionally between agents with version awareness
 - **Render** optimized output for any target agent
 - **Validate** that conversions preserve semantic intent
@@ -13,25 +17,25 @@ A comprehensive, flexible, version-aware cross-agent compatibility engine for bi
 
 ## Supported Agents
 
-| Agent | Component Types | Status |
-|-------|----------------|--------|
-| **Claude Code** | skill, hook, memory, rule, agent, config | ✅ Full support |
-| **Windsurf (Cascade)** | skill, workflow, rule, memory, config | ✅ Full support |
-| **Cursor** | command, rule, memory, config | ✅ Full support |
-| **Gemini CLI** | memory, config | ✅ Full support |
-| **Universal (AGENTS.md)** | memory | ✅ Full support |
+| Agent                     | Component Types                          | Status          |
+| ------------------------- | ---------------------------------------- | --------------- |
+| **Claude Code**           | skill, hook, memory, rule, agent, config | ✅ Full support |
+| **Windsurf (Cascade)**    | skill, workflow, rule, memory, config    | ✅ Full support |
+| **Cursor**                | command, rule, memory, config            | ✅ Full support |
+| **Gemini CLI**            | memory, config                           | ✅ Full support |
+| **Universal (AGENTS.md)** | memory                                   | ✅ Full support |
 
 ## Memory File Support
 
 The engine now supports parsing and converting agent memory/context files:
 
-| File Type | Agent | Description |
-|-----------|-------|-------------|
-| `AGENTS.md` | Universal | Cross-agent standard (60k+ projects) |
-| `CLAUDE.md` | Claude Code | Project context with @imports |
-| `CLAUDE.local.md` | Claude Code | Local overrides (gitignored) |
-| `.claude/rules/*.md` | Claude Code | Path-specific rules |
-| `GEMINI.md` | Gemini CLI | Project context |
+| File Type            | Agent       | Description                          |
+| -------------------- | ----------- | ------------------------------------ |
+| `AGENTS.md`          | Universal   | Cross-agent standard (60k+ projects) |
+| `CLAUDE.md`          | Claude Code | Project context with @imports        |
+| `CLAUDE.local.md`    | Claude Code | Local overrides (gitignored)         |
+| `.claude/rules/*.md` | Claude Code | Path-specific rules                  |
+| `GEMINI.md`          | Gemini CLI  | Project context                      |
 
 ### Memory File Conversion
 
@@ -43,7 +47,8 @@ cace convert CLAUDE.md --to universal
 cace convert AGENTS.md --to claude
 ```
 
-**Note:** Claude's `@import` syntax is not supported in AGENTS.md. When converting, imports are flagged for manual resolution.
+**Note:** Claude's `@import` syntax is not supported in AGENTS.md. When
+converting, imports are flagged for manual resolution.
 
 ## Installation
 
@@ -155,6 +160,34 @@ cace import spec.json --to cursor
 cace import spec.json --to windsurf --dry-run
 ```
 
+### Version awareness commands
+
+```bash
+# Detect the version of a component
+cace version detect .claude/skills/my-skill/SKILL.md
+
+# List available versions for all agents
+cace version list
+
+# List versions for a specific agent
+cace version list --agent claude
+
+# Generate a migration guide
+cace version migration-guide claude --from 1.0 --to 2.0
+
+# Generate migration guide as Markdown
+cace version migration-guide claude --from 1.0 --to 2.0 --markdown
+
+# List breaking changes between versions
+cace version breaking-changes cursor --from 0.34 --to 1.7
+
+# Check if a feature is available in a version
+cace version feature-check claude claude-hooks --version 1.5
+
+# Analyze migration complexity
+cace version analyze cursor 0.34 1.7
+```
+
 ### Utility commands
 
 ```bash
@@ -224,22 +257,22 @@ Every conversion produces a detailed report:
 
 ```typescript
 interface ConversionReport {
-  preservedSemantics: string[];  // What was kept
-  losses: ConversionLoss[];      // What was lost
+  preservedSemantics: string[]; // What was kept
+  losses: ConversionLoss[]; // What was lost
   warnings: ConversionWarning[]; // Potential issues
-  suggestions: string[];         // Manual review hints
-  fidelityScore: number;         // 0-100 score
+  suggestions: string[]; // Manual review hints
+  fidelityScore: number; // 0-100 score
 }
 ```
 
 ### Example losses
 
-| Source | Target | Feature | Handling |
-|--------|--------|---------|----------|
-| Claude `context: fork` | Windsurf | Fork execution | ⚠️ Lost - runs in main |
-| Claude `allowed-tools` | Cursor | Tool restrictions | ⚠️ Lost - no enforcement |
-| Windsurf `auto_execution_mode` | Cursor | Auto-activation | ⚠️ Lost - always manual |
-| Claude `$ARGUMENTS` | Windsurf | Structured args | ✅ Converted to prose |
+| Source                         | Target   | Feature           | Handling                 |
+| ------------------------------ | -------- | ----------------- | ------------------------ |
+| Claude `context: fork`         | Windsurf | Fork execution    | ⚠️ Lost - runs in main   |
+| Claude `allowed-tools`         | Cursor   | Tool restrictions | ⚠️ Lost - no enforcement |
+| Windsurf `auto_execution_mode` | Cursor   | Auto-activation   | ⚠️ Lost - always manual  |
+| Claude `$ARGUMENTS`            | Windsurf | Structured args   | ✅ Converted to prose    |
 
 ## Project Structure
 
@@ -310,12 +343,14 @@ bun run dev
 - [x] Enhanced error messages with suggestions
 - [x] Colored output and formatting
 
-### Phase 2: Version Awareness
+### Phase 2: Version Awareness ✅
 
-- [ ] Version catalog for each agent
-- [ ] Version detection in parsers
-- [ ] Version-specific rendering adapters
-- [ ] Migration guides for breaking changes
+- [x] Version catalog for each agent (Claude, Windsurf, Cursor)
+- [x] Version detection in parsers (heuristic-based with confidence scoring)
+- [x] Version-specific rendering adapters (with breaking change handling)
+- [x] Migration guides for breaking changes (Markdown and CLI formats)
+- [x] CLI commands: `version detect`, `version list`, `version migration-guide`,
+      etc.
 
 ### Phase 3: Advanced Features
 

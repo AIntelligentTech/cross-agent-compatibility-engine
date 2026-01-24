@@ -1,6 +1,6 @@
 {
   "name": "cross-agent-compatibility-engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A comprehensive, flexible, version-aware cross-agent compatibility engine for bidirectional conversion of agent components",
   "type": "module",
   "main": "dist/index.js",
