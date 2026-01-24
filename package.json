@@ -1,0 +1,47 @@
+{
+  "name": "cross-agent-compatibility-engine",
+  "version": "0.1.0",
+  "description": "A comprehensive, flexible, version-aware cross-agent compatibility engine for bidirectional conversion of agent components",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "cace": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "ai-agents",
+    "claude-code",
+    "windsurf",
+    "cursor",
+    "workflow",
+    "skill",
+    "command",
+    "conversion",
+    "compatibility"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "gray-matter": "^4.0.3",
+    "chalk": "^5.3.0",
+    "zod": "^3.22.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
