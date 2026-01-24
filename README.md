@@ -80,6 +80,55 @@ cace batch-convert .windsurf/workflows/*.md --to claude
 cace batch-validate .claude/skills/*/SKILL.md
 ```
 
+### Inspect a component
+
+```bash
+# Deep inspection showing all IR fields
+cace inspect .windsurf/workflows/deep-code.md
+
+# Output as JSON
+cace inspect workflow.md --json
+
+# Include conversion compatibility details
+cace inspect workflow.md --verbose
+```
+
+### Compare components (diff)
+
+```bash
+# Compare two components
+cace diff workflow-v1.md workflow-v2.md
+
+# Output as JSON
+cace diff original.md converted.md --json
+```
+
+### Round-trip validation
+
+```bash
+# Test conversion fidelity: windsurf → claude → windsurf
+cace round-trip .windsurf/workflows/deep-code.md --via claude
+
+# With verbose output
+cace round-trip workflow.md --via cursor --verbose
+
+# Output as JSON
+cace round-trip workflow.md --via claude --json
+```
+
+### Export/Import ComponentSpec
+
+```bash
+# Export to JSON (for debugging or manual editing)
+cace export .windsurf/workflows/deep-code.md -o spec.json
+
+# Import JSON and render to target agent
+cace import spec.json --to cursor
+
+# Dry run import
+cace import spec.json --to windsurf --dry-run
+```
+
 ### Utility commands
 
 ```bash
@@ -217,6 +266,7 @@ bun run dev
 ## Roadmap
 
 ### Phase 1: Core Engine (MVP) ✅
+
 - [x] ComponentSpec schema
 - [x] Parsers for Claude, Windsurf, Cursor
 - [x] Renderers for Claude, Windsurf, Cursor
@@ -224,19 +274,32 @@ bun run dev
 - [x] CLI: convert, validate commands
 - [x] Loss reporting
 
+### Phase 1.5: Enhanced DX ✅
+
+- [x] `inspect` command - Deep component inspection
+- [x] `diff` command - Semantic comparison
+- [x] `round-trip` command - Fidelity validation
+- [x] `export`/`import` commands - IR debugging
+- [x] JSON output mode for CI/CD
+- [x] Enhanced error messages with suggestions
+- [x] Colored output and formatting
+
 ### Phase 2: Version Awareness
+
 - [ ] Version catalog for each agent
 - [ ] Version detection in parsers
 - [ ] Version-specific rendering adapters
 - [ ] Migration guides for breaking changes
 
 ### Phase 3: Advanced Features
-- [ ] Bidirectional round-trip validation
-- [ ] Semantic diff between components
+
 - [ ] Batch conversion with parallelization
 - [ ] Plugin system for new agents
+- [ ] Configuration file (.cacerc)
+- [ ] Watch mode for development
 
 ### Phase 4: Ecosystem Integration
+
 - [ ] IDE extensions (VS Code, JetBrains)
 - [ ] CI/CD integration (GitHub Actions)
 - [ ] Web UI for browsing and converting
