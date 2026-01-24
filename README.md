@@ -1,8 +1,12 @@
 # Cross-Agent Compatibility Engine (CACE)
 
+[![CI](https://github.com/AIntelligentTech/cross-agent-compatibility-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/AIntelligentTech/cross-agent-compatibility-engine/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/cross-agent-compatibility-engine.svg)](https://www.npmjs.com/package/cross-agent-compatibility-engine)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A comprehensive, flexible, version-aware cross-agent compatibility engine for
 bidirectional conversion of agent components between Claude Code, Windsurf
-(Cascade), and Cursor.
+(Cascade), Cursor, Gemini CLI, OpenCode, Aider, and Continue.
 
 ## Features
 
@@ -53,17 +57,14 @@ converting, imports are flagged for manual resolution.
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/cross-agent-compatibility-engine.git
+# Install from npm
+npm install -g cross-agent-compatibility-engine
+
+# Or clone and build from source
+git clone https://github.com/AIntelligentTech/cross-agent-compatibility-engine.git
 cd cross-agent-compatibility-engine
-
-# Install dependencies
 bun install
-
-# Build
 bun run build
-
-# Link CLI globally (optional)
 bun link
 ```
 
@@ -366,6 +367,24 @@ bun run dev
 - [ ] Web UI for browsing and converting
 - [ ] Registry of community components
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md)
+for details on how to get started.
+
+Before contributing, please read our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+For security issues, please see our [Security Policy](SECURITY.md).
+
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
+- [Claude Code](https://claude.ai) by Anthropic
+- [Windsurf](https://codeium.com/windsurf) by Codeium
+- [Cursor](https://cursor.com) by Cursor Inc.
+- All contributors who help improve this project

@@ -22,9 +22,23 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Test coverage
 coverage/
+.nyc_output/
 
 # Bun
 bun.lockb
+
+# npm
+*.tgz
+
+# Temporary files
+tmp/
+.tmp/
+*.tmp
+
+# Editor backups
+*~
+\#*\#
