@@ -27,19 +27,43 @@ export class CursorParser extends BaseParser {
   readonly agentId = "cursor" as const;
 
   canParse(content: string, filename?: string): boolean {
+    // Check filename patterns first (most reliable)
     if (filename) {
       if (filename.includes(".cursor/commands/")) {
         return true;
       }
+      if (filename.includes(".cursor/rules/")) {
+        return true;
+      }
     }
 
-    // Cursor commands are plain markdown, so we check for typical structure
-    // Look for # Title at the start or ## Objective section
+    // Cursor commands are plain markdown without YAML frontmatter
+    // Check for typical Cursor command structure patterns
     const hasTitle = /^#\s+.+/m.test(content);
     const hasObjective = /^##\s+Objective/im.test(content);
     const hasRequirements = /^##\s+Requirements/im.test(content);
+    const hasWhenToUse = /^##\s+When to Use/im.test(content);
+    const hasGoal = /^##\s+Goal/im.test(content);
 
-    return hasTitle && (hasObjective || hasRequirements);
+    // Has title AND at least one common Cursor section
+    if (
+      hasTitle &&
+      (hasObjective || hasRequirements || hasWhenToUse || hasGoal)
+    ) {
+      return true;
+    }
+
+    // Check if it looks like a Cursor command by structure:
+    // - No YAML frontmatter (or minimal)
+    // - Has numbered sections like "## 1. " or "## Step 1"
+    const hasNoFrontmatter = !content.startsWith("---");
+    const hasNumberedSections = /^##\s+\d+\.|^##\s+Step\s+\d/im.test(content);
+
+    if (hasTitle && hasNoFrontmatter && hasNumberedSections) {
+      return true;
+    }
+
+    return false;
   }
 
   /**

@@ -366,14 +366,14 @@ versionCmd
   .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
   .option("-j, --json", "Output as JSON")
   .action(
-    (
+    async (
       source: string,
       options: {
         from?: string;
         json?: boolean;
       },
     ) => {
-      const result = versionDetectCommand(source, {
+      const result = await versionDetectCommand(source, {
         from: options.from as AgentId | undefined,
         json: options.json,
       });

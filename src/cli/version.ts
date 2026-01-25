@@ -5,7 +5,11 @@
 import fs from "fs";
 import chalk from "chalk";
 import type { AgentId } from "../core/types.js";
-import { SUPPORTED_AGENTS, AGENTS } from "../core/constants.js";
+import {
+  SUPPORTED_AGENTS,
+  AGENTS,
+  AGENT_FILE_PATTERNS,
+} from "../core/constants.js";
 import { detectVersion } from "../versioning/version-detector.js";
 import {
   getAgentVersions,
@@ -39,10 +43,10 @@ interface VersionDetectResult {
 /**
  * Detect the version of a component file
  */
-export function versionDetectCommand(
+export async function versionDetectCommand(
   source: string,
   options: VersionDetectOptions,
-): VersionDetectResult {
+): Promise<VersionDetectResult> {
   // Read the file
   let content: string;
   try {
@@ -59,14 +63,46 @@ export function versionDetectCommand(
   // Determine agent
   let agent = options.from;
   if (!agent) {
-    // Auto-detect agent from file path or content
-    for (const agentId of SUPPORTED_AGENTS) {
+    // Auto-detect agent from file path using specific patterns first
+    // Order matters: check specific paths before generic ones (like gemini's ".")
+    const agentDetectionOrder: AgentId[] = [
+      "claude",
+      "windsurf",
+      "cursor",
+      "opencode",
+      "aider",
+      "continue",
+      "universal", // AGENTS.md
+      "gemini", // Last because project path is "." which matches everything
+    ];
+
+    for (const agentId of agentDetectionOrder) {
       const agentConfig = AGENTS[agentId];
-      if (source.includes(agentConfig.configLocations.project)) {
+      const projectPath = agentConfig.configLocations.project;
+
+      // Skip generic paths like "." or "~" for auto-detection
+      if (projectPath === "." || projectPath === "~") {
+        // Check file patterns instead for these agents
+        const patterns = AGENT_FILE_PATTERNS[agentId];
+        if (patterns?.some((pattern) => pattern.test(source))) {
+          agent = agentId;
+          break;
+        }
+        continue;
+      }
+
+      if (source.includes(projectPath)) {
         agent = agentId;
         break;
       }
     }
+
+    // If still not detected, try content-based detection via parser factory
+    if (!agent) {
+      const { detectAgent } = await import("../parsing/parser-factory.js");
+      agent = detectAgent(content, source);
+    }
+
     if (!agent) {
       console.error(
         chalk.red("Could not detect agent. Use --from to specify."),

@@ -80,9 +80,11 @@ export class WindsurfParser extends BaseParser {
     const fm = parsed.data as WindsurfFrontmatter;
     const body = parsed.content.trim();
 
-    // Extract ID from filename
+    // Extract ID from filename or body title
     const id =
-      this.extractIdFromFilename(options?.sourceFile) ?? "unknown-workflow";
+      this.extractIdFromFilename(options?.sourceFile) ??
+      this.extractIdFromBody(body) ??
+      "unknown-workflow";
 
     // Determine component type from path
     const componentType = options?.sourceFile?.includes("/rules/")
@@ -161,6 +163,19 @@ export class WindsurfParser extends BaseParser {
     const ruleMatch = filename.match(/\.windsurf\/rules\/([^/]+)\.md$/);
     if (ruleMatch?.[1]) return ruleMatch[1];
 
+    return undefined;
+  }
+
+  private extractIdFromBody(body: string): string | undefined {
+    // Extract from H1 title: # Title
+    const titleMatch = body.match(/^#\s+(.+)$/m);
+    if (titleMatch?.[1]) {
+      // Convert title to slug: "Test Workflow" -> "test-workflow"
+      return titleMatch[1]
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+    }
     return undefined;
   }
 
