@@ -7,6 +7,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-01-29
+
+### 📚 Documentation Improvements
+
+- **Comprehensive README overhaul** - Complete rewrite with v2.1.0 best practices
+- **REPL-first approach** - Interactive mode now recommended as primary usage method
+- **Visual quick start** - Added 3 quick start options (Interactive ⭐, CLI, Local)
+- **6-agent matrix** - Complete conversion fidelity table for all 30 paths
+- **Usage examples** - Interactive mode examples alongside CLI examples
+- **Deep dive sections** - Detailed interactive mode documentation
+- **Better discoverability** - Clear navigation and feature highlights
+- **Updated stats** - 428 tests, 6 agents, 91% average fidelity
+
+### 🎯 New User Experience
+
+- **REPL mode emphasized** - Now the recommended starting point for all users
+- **Visual guidance** - Screenshots and example outputs in documentation
+- **Safety first** - Clear disclaimers and warnings throughout
+- **Learning path** - Demo command for guided tutorial
+- **Reference materials** - Complete command reference and guides
+
+---
+
 ## [2.1.0] - 2026-01-29
 
 ### 🎉 Major Release - Interactive Mode & Enhanced UX

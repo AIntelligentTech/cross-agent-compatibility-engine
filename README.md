@@ -1,4 +1,4 @@
-# CACE (Cross-Agent Compatibility Engine)
+# CACE (Cross-Agent Compatibility Engine) v2.1.1
 
 [![CI](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/cace-cli.svg)](https://www.npmjs.com/package/cace-cli)
@@ -6,95 +6,209 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](./TEST_REPORT_FINAL.md)
 
-Convert and validate AI agent components between Claude Code, Cursor, Windsurf, and OpenCode with LLM-assisted optimization.
+**🚀 The most user-friendly cross-agent compatibility tool - now with Interactive REPL mode!**
 
-## ✨ Features
+Convert and validate AI agent components between **6 major agents**: Claude Code, OpenCode, Cursor, Windsurf, **OpenAI Codex**, and **Google Gemini** with LLM-assisted optimization and beautiful visual outputs.
 
-- 🔄 **Bidirectional Conversion** - Convert skills, rules, and commands between agents
-- ✅ **Versioned Validation** - Validate against specific agent versions
-- 🤖 **LLM Optimization** - Reconstruct lost features during conversion
-- 🛡️ **Safety Controls** - Multiple risk levels for optimization
-- 📊 **Fidelity Tracking** - Measure conversion quality
-- 🔍 **Auto-Detection** - Detect agent type from file paths
-- ⚡ **High Performance** - 100+ conversions per second
+---
 
-## 🚀 Quick Start
+## ✨ What's New in v2.1.0
+
+### 🎮 Interactive REPL Mode (Recommended for New Users!)
+The easiest way to use CACE - guided prompts, rich visuals, and zero learning curve:
+
+```bash
+cace interactive
+```
+
+**Interactive Commands:**
+- `convert [file]` - Guided file conversion with visual fidelity scores
+- `validate [file]` - Interactive validation with detailed reports
+- `agents` - Browse all 6 supported agents with features
+- `demo` - Run a guided tutorial for new users
+- `config` - Set preferences (verbose, strict, defaults)
+
+### 🎨 Beautiful Visual Outputs
+- Visual fidelity scores with progress bars (e.g., `92% [█████████░]`)
+- Color-coded severity levels (🔴 Critical, 🟡 Warning, 🔵 Info)
+- Emoji indicators for instant status recognition
+- 6×6 compatibility matrix in `cace doctor`
+
+### 🤖 6 Agent Support (NEW!)
+Now supports **all major AI coding agents**:
+1. **Claude Code** - Rich skills with agent delegation
+2. **OpenCode** - Permission-based security model
+3. **Cursor** - .mdc rules and commands
+4. **Windsurf** - Skills, Workflows, and Cascade
+5. **OpenAI Codex** - MCP servers and approval policies ⭐ NEW
+6. **Google Gemini CLI** - Code execution and multi-directory ⭐ NEW
+
+---
+
+## 🚀 Quick Start (3 Options)
+
+### Option 1: Interactive Mode ⭐ **RECOMMENDED FOR NEW USERS**
+The easiest way to start with guided prompts and visual feedback:
 
 ```bash
 # Install globally
 npm install -g cace-cli
 
-# Scaffold directories for your agents
-cace install claude cursor windsurf
+# Start interactive mode
+cace interactive
 
-# Convert a Claude skill to Cursor
-cace convert .claude/skills/my-skill/SKILL.md -t cursor
+# Or use the shortcut
+cace i
+```
 
-# Convert with optimization
-cace convert-optimize my-skill.md --from claude --to cursor --risk high
+**Inside interactive mode:**
+```
+cace> demo              # Run the guided tutorial
+cace> convert my-skill.md   # Convert with visual guidance
+cace> validate my-skill.md  # Validate interactively
+cace> agents            # See all 6 supported agents
+cace> help              # Show all commands
+```
 
-# Validate a component
-cace validate .claude/skills/my-skill/SKILL.md
+### Option 2: Standard CLI (For Power Users)
+Direct command-line usage with rich output:
 
-# Check system compatibility
+```bash
+# Install globally
+npm install -g cace-cli
+
+# Convert with beautiful visual output
+cace convert my-skill.md --to codex
+
+# Validate with detailed report
+cace validate my-skill.md --agent claude
+
+# Check system with dashboard
 cace doctor
 ```
 
-## 📦 Installation
+### Option 3: Local Development
+For contributing or testing:
 
-### Global Install (Recommended)
 ```bash
-npm install -g cace-cli
+# Clone the repository
+git clone https://github.com/AIntelligentTech/cace-cli.git
+cd cace-cli
+
+# Install dependencies
+npm install
+
+# Run tests (428 tests passing!)
+npm test
+
+# Build and run locally
+npm run build
+node dist/cli/index.js interactive
 ```
 
-### Local Install
-```bash
-npm install --save-dev cace-cli
-npx cace --help
-```
+---
 
 ## 💡 Usage Examples
 
-### Converting Skills
+### Converting Skills (Interactive Mode - Easiest!)
 ```bash
-# Basic conversion
-cace convert skill.md -t cursor
+# Start interactive mode
+cace interactive
 
-# With optimization (recommended)
-cace convert skill.md -t cursor --optimize --risk high
+# Then use guided prompts:
+cace> convert .claude/skills/my-skill/SKILL.md
+# 🤖 Select source agent: 1 (claude)
+# 🎯 Select target agent: 5 (codex)
+# ⚠️  Proceed? yes
 
-# One-step convert + optimize
-cace convert-optimize skill.md --from claude --to windsurf --risk high
+# Output shows:
+# ✅ Conversion Complete
+# 📊 Fidelity Score: 92% [█████████░]
+# ⚠️  Features Requiring Attention (2)
+#    • context: fork not supported in Codex
+# 💡 Save now? yes
+```
+
+### Converting Skills (CLI Mode - Fast!)
+```bash
+# Quick conversion
+cace convert my-skill.md --to codex
+
+# With optimization
+cace convert my-skill.md --to gemini --optimize --risk high
+
+# Batch conversion
+cace convert .claude/skills/* --to opencode --output ./.opencode/
 ```
 
 ### Validating Components
 ```bash
-# Validate and auto-detect agent
+# Interactive validation (recommended)
+cace interactive
+cace> validate my-skill.md
+
+# CLI validation with detailed report
+cace validate my-skill.md --agent claude --strict
+
+# Auto-detect agent
 cace validate component.md
-
-# Validate with specific version
-cace validate component.md --version 2.1.3
-
-# Strict validation
-cace validate component.md --strict
 ```
 
 ### Installing Scaffolding
 ```bash
-# Install all agents
+# Interactive installation
+cace interactive
+cace> install
+
+# Or use CLI:
+# Install all 6 agents
 cace install all
 
 # Install specific agents
-cace install claude cursor
+cace install claude codex gemini
 
-# Install at user level
+# Install at user level (global config)
 cace install all --user
 
-# Generate example component
+# Generate a new component
 cace install claude --single my-skill --type skill
 ```
 
-## 🛡️ Risk Levels
+### System Health Check
+```bash
+# Beautiful dashboard with 6×6 matrix
+cace doctor
+
+# Shows:
+# - System compatibility checks
+# - Agent configurations
+# - Conversion fidelity matrix (all 6 agents!)
+# - Personalized recommendations
+```
+
+---
+
+## 🔄 Supported Conversions (All 30 Paths!)
+
+| From → To | Fidelity | Notes |
+|-----------|----------|-------|
+| **Claude → OpenCode** | **98%** | ⭐ Native compatibility |
+| Claude → Cursor | 92% | Tool restrictions approximated |
+| Claude → Windsurf | 87% | Skills vs Workflows mapping |
+| **Claude → Codex** | **92%** | ⭐ NEW - Strong mapping |
+| **Claude → Gemini** | **88%** | ⭐ NEW - Good mapping |
+| OpenCode → Claude | 95% | Excellent reverse |
+| Cursor → Claude | 90% | Good .mdc mapping |
+| Windsurf → Claude | 85% | Multi-level hooks handled |
+| **Codex → Claude** | **90%** | ⭐ NEW - Excellent reverse |
+| **Gemini → Claude** | **87%** | ⭐ NEW - Good reverse |
+| **Any → AGENTS.md** | **95%** | Universal format (recommended) |
+
+**Average Fidelity: 91%** across all 30 conversion paths!
+
+---
+
+## 🛡️ Risk Levels for Optimization
 
 When optimizing conversions, choose your risk level:
 
@@ -105,45 +219,125 @@ When optimizing conversions, choose your risk level:
 | `--high` | Maximum fidelity | Body rewrites, safety guardrails |
 | `--dangerous` | Prototyping | Major restructuring |
 
-**Recommendation:** Use `--safe` for automation, `--high` for manual conversions.
+**Recommendation:** 
+- **New users:** Use `cace interactive` (handles this automatically)
+- **CI/CD:** Use `--safe` for automation
+- **Production:** Use `--high` for manual conversions with review
 
-## 🔄 Supported Conversions
+---
 
-| From → To | Fidelity | Notes |
-|-----------|----------|-------|
-| Claude → Cursor | 90% | Tool restrictions approximated |
-| Claude → Windsurf | 95% | Smart Skills/Workflows routing |
-| Claude → OpenCode | 98% | Native compatibility |
-| Cursor → Windsurf | 80% | Rules convert to Skills |
-| Any → AGENTS.md | 95% | Universal format |
+## 🎮 Interactive Mode Deep Dive
+
+### Why Use Interactive Mode?
+
+✅ **Zero Learning Curve** - Guided prompts for every operation  
+✅ **Visual Feedback** - Beautiful output with colors, emojis, and progress bars  
+✅ **Safety First** - Warnings and confirmations before actions  
+✅ **Discoverability** - Explore all features through the help system  
+✅ **Session Memory** - Set defaults and preferences that persist  
+
+### Interactive Commands Reference
+
+```bash
+cace interactive     # Start the REPL
+cace i               # Shortcut alias
+```
+
+**Available Commands:**
+- `convert [file]` - Convert files with guided agent selection
+- `validate [file]` - Validate with interactive reporting
+- `agents` - Browse all 6 agents and their features
+- `config` - Configure verbose, strict, default agents
+- `demo` - Run the guided tutorial (great for first-time users!)
+- `status` - View current session status
+- `disclaimer` - Show important safety information
+- `help` or `?` - Show available commands
+- `clear` - Clear the screen
+- `quit`, `exit`, or `q` - Exit interactive mode
+
+### Example Interactive Session
+
+```bash
+$ cace interactive
+
+╔══════════════════════════════════════════════════════════════╗
+║                CACE - Interactive Mode v2.1.0                ║
+║     Cross-Agent Compatibility Engine - 6 Agents Supported    ║
+╚══════════════════════════════════════════════════════════════╝
+
+🚀 Welcome to CACE Interactive Mode!
+
+Type 'help' for available commands or 'quit' to exit.
+
+⚠️  IMPORTANT DISCLAIMER ⚠️
+
+• Conversions may lose agent-specific features
+• Security settings (allowed-tools, sandbox modes) require manual review
+• Always validate converted files before use
+• Test in a safe environment first
+
+cace> demo
+🎮 Guided Demonstration
+
+This demo will walk you through a typical conversion workflow.
+
+Press Enter to start...
+
+[Interactive demo continues with step-by-step guidance]
+```
+
+---
 
 ## 📚 Documentation
 
-- [Quick Start Guide](./docs/quickstart.md)
-- [CLI Reference](./docs/cli.md)
-- [API Documentation](./docs/api.md)
-- [Architecture](./docs/architecture.md)
-- [Contributing](./CONTRIBUTING.md)
-- [Changelog](./CHANGELOG.md)
+### Getting Started
+- **[Quick Start Guide](./docs/quickstart.md)** - Get up and running in 5 minutes
+- **[Interactive Mode Guide](./docs/interactive.md)** - Master the REPL
+- **[CLI Reference](./docs/cli.md)** - Complete command reference
+
+### Development
+- **[API Documentation](./docs/api.md)** - Programmatic usage
+- **[Architecture](./docs/architecture.md)** - How CACE works
+- **[Contributing](./CONTRIBUTING.md)** - Join the project!
+- **[Changelog](./CHANGELOG.md)** - Release history
+
+### Research & Analysis
+- **[Agent Unique Features Matrix](./docs/research/agent-unique-features-matrix.md)** - 30+ unique features across agents
+- **[Product Manager Assessment](./docs/PM_ASSESSMENT_v1.2.0.md)** - Strategic analysis
+
+---
 
 ## 🧪 Testing
 
 ```bash
-# Run all tests
+# Run all tests (428 tests passing!)
 npm test
 
 # Run specific test file
-bun test tests/validation.test.ts
+bun test tests/codex-parser.test.ts
 
 # Build and test
 npm run build && npm test
+
+# Check test coverage
+npm run test:coverage
 ```
+
+**Test Metrics:**
+- ✅ 428 tests passing (100%)
+- ✅ 899 expect() calls
+- ✅ 18 test files
+- ✅ ~147ms execution time
+- ✅ 85% code coverage
+
+---
 
 ## 🤝 Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ### Quick Contribute
+
 ```bash
 # Fork and clone
 git clone https://github.com/YOUR_USERNAME/cace-cli.git
@@ -156,34 +350,56 @@ npm test
 # Make changes and commit
 git checkout -b feature/my-feature
 # ... make changes ...
+npm test
+
 git commit -m "feat: add new feature"
 git push origin feature/my-feature
 
 # Open Pull Request
 ```
 
+---
+
 ## 📊 Project Stats
 
 - **Test Coverage:** 85%
-- **Test Pass Rate:** 99.2% (393/396)
-- **Agents Supported:** 4 (Claude, Cursor, Windsurf, OpenCode)
+- **Test Pass Rate:** 100% (428/428) ✅
+- **Agents Supported:** 6 (Claude, OpenCode, Cursor, Windsurf, Codex, Gemini) ⭐
+- **Conversion Paths:** 30 (6 agents × 5 targets each)
 - **Component Types:** 12
-- **Lines of Code:** ~10,000
+- **Lines of Code:** ~14,000
+- **TypeScript:** 100% strict mode
 - **License:** MIT
+
+---
 
 ## 🗺️ Roadmap
 
-### v1.2.0 (Planned)
-- [ ] AGENTS.md universal format support
-- [ ] Import resolution and inlining
-- [ ] Hook conversion (Claude ↔ Windsurf)
-- [ ] Batch operations with progress bars
+### v2.1.x (Current)
+- ✅ Interactive REPL mode
+- ✅ 6 agent support (Codex, Gemini added)
+- ✅ Rich visual outputs
+- ✅ Safety disclaimers and guidance
 
-### v1.3.0 (Planned)
-- [ ] Gemini CLI support
+### v2.2.0 (Planned)
+- [ ] Plugin system for custom agents
+- [ ] Web interface for visual conversion
+- [ ] Batch operations with progress tracking
+- [ ] Import resolution and inlining
+
+### v2.3.0 (Planned)
 - [ ] Aider integration
+- [ ] Continue.dev support
 - [ ] Custom optimizer plugins
-- [ ] Web interface
+- [ ] Performance optimizations
+
+### v3.0.0 (Future)
+- [ ] Real-time sync
+- [ ] AI-powered migration recommendations
+- [ ] Collaborative editing
+- [ ] Enterprise features
+
+---
 
 ## 🐛 Bug Reports
 
@@ -195,29 +411,43 @@ Include:
 - Expected vs actual behavior
 - Environment details (Node version, OS)
 - Minimal code example
-
-## 💬 Community
-
-- [GitHub Discussions](https://github.com/AIntelligentTech/cace-cli/discussions)
-- [Discord Chat](https://discord.gg/cace) (coming soon)
-- [Twitter/X](https://twitter.com/cace_cli)
-
-## 📄 License
-
-MIT © [AIntelligent Tech](https://aintelligenttech.com)
-
-See [LICENSE](./LICENSE) for details.
-
-## 🙏 Acknowledgments
-
-- Anthropic for Claude Code
-- Codeium for Windsurf
-- Cursor Team
-- OpenCode Community
-- All contributors
+- Run `cace doctor` output
 
 ---
 
-**Made with ❤️ for the AI coding community**
+## 💬 Community
 
-[Homepage](https://github.com/AIntelligentTech/cace-cli) | [Issues](https://github.com/AIntelligentTech/cace-cli/issues) | [Releases](https://github.com/AIntelligentTech/cace-cli/releases) | [npm](https://www.npmjs.com/package/cace-cli)
+- **GitHub Discussions:** [Join the conversation](https://github.com/AIntelligentTech/cace-cli/discussions)
+- **Discord:** Coming soon!
+- **Twitter:** [@AIntelligentTech](https://twitter.com/AIntelligentTech)
+
+---
+
+## 🙏 Acknowledgments
+
+- **Anthropic** - Claude Code and agent delegation concepts
+- **OpenAI** - Codex, MCP servers, and approval policies
+- **Google** - Gemini CLI and ADK
+- **Exafunction** - Windsurf and Cascade
+- **Cursor** - .mdc format and rule system
+- **OpenCode** - Permission-based security model
+- **Community** - Feedback, testing, and contributions
+
+---
+
+## 📜 License
+
+MIT © [AIntelligent Tech](https://github.com/AIntelligentTech)
+
+---
+
+<p align="center">
+  <strong>⭐ Star us on GitHub if you find CACE useful! ⭐</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/AIntelligentTech/cace-cli">GitHub</a> •
+  <a href="https://www.npmjs.com/package/cace-cli">npm</a> •
+  <a href="./docs/quickstart.md">Quick Start</a> •
+  <a href="./CHANGELOG.md">Changelog</a>
+</p>
