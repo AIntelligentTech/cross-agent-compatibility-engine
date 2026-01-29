@@ -112,11 +112,18 @@ src/cli/wizard.ts (1100+ lines)
 - **New commands:**
   - `cace wizard` (alias: `w`) - Multi-select wizard
   - `cace convert-dir <path>` (alias: `cd`) - Directory conversion
-  
+   
 - **Enhanced existing commands:**
   - `cace convert` - Now shows visual fidelity scores
   - `cace validate` - Better error categorization
   - `cace doctor` - Shows 6×6 compatibility matrix
+
+### 🐛 Bug Fixes
+
+- **Wizard Rendering** - Fixed visual artifacts in multi-select interface caused by extra newlines in ANSI escape sequences
+  - Removed unnecessary `\n` characters from question and instruction messages
+  - Ensured line clearing calculation matches actual line count
+  - Improved rendering stability during arrow key navigation
 
 ---
 

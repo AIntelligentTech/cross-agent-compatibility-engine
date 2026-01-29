@@ -99,18 +99,18 @@ async function multiSelect(
   question: string,
   options: { value: string; label: string; checked?: boolean }[]
 ): Promise<string[]> {
-  console.log(chalk.blue(`\n${question}`));
-  console.log(chalk.gray("Use arrow keys to navigate, space to select, enter to confirm\n"));
+  console.log(chalk.blue(`${question}`));
+  console.log(chalk.gray("Use arrow keys to navigate, space to select, enter to confirm"));
   
   let selected = new Set(options.filter(o => o.checked).map(o => o.value));
   let cursor = 0;
   
   const render = () => {
-    // Clear previous lines
+    // Clear previous lines - account for question, instruction, and all options
     process.stdout.write("\x1B[" + (options.length + 2) + "A");
     
     console.log(chalk.blue(`${question}`));
-    console.log(chalk.gray("Use arrow keys ↑↓, space to toggle, enter to confirm\n"));
+    console.log(chalk.gray("Use arrow keys ↑↓, space to toggle, enter to confirm"));
     
     options.forEach((opt, i) => {
       const isSelected = selected.has(opt.value);
@@ -126,7 +126,7 @@ async function multiSelect(
   
   // Initial render
   console.log(chalk.blue(`${question}`));
-  console.log(chalk.gray("Use arrow keys ↑↓, space to toggle, enter to confirm\n"));
+  console.log(chalk.gray("Use arrow keys ↑↓, space to toggle, enter to confirm"));
   options.forEach((opt, i) => {
     const isSelected = selected.has(opt.value);
     const checkbox = isSelected ? chalk.green("[✓]") : chalk.gray("[ ]");

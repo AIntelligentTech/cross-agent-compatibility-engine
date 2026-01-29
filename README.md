@@ -1,4 +1,4 @@
-# CACE (Cross-Agent Compatibility Engine) v2.1.1
+# CACE (Cross-Agent Compatibility Engine) v2.2.0
 
 [![CI](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/cace-cli.svg)](https://www.npmjs.com/package/cace-cli)
@@ -6,57 +6,125 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](./TEST_REPORT_FINAL.md)
 
-**🚀 The most user-friendly cross-agent compatibility tool - now with Interactive REPL mode!**
+**🚀 The most user-friendly cross-agent compatibility tool - now with Multi-Select Wizard & Directory Conversion!**
 
 Convert and validate AI agent components between **6 major agents**: Claude Code, OpenCode, Cursor, Windsurf, **OpenAI Codex**, and **Google Gemini** with LLM-assisted optimization and beautiful visual outputs.
 
 ---
 
-## ✨ What's New in v2.1.0
+## ✨ What's New in v2.2.0
 
-### 🎮 Interactive REPL Mode (Recommended for New Users!)
+### 🧙 Multi-Select Wizard Mode (NEW!)
+The ultimate way to manage complex multi-agent operations with an intuitive arrow-key interface:
+
+```bash
+cace wizard
+```
+
+**Wizard Features:**
+- **Multi-select interface** - Navigate with ↑↓, select with space, confirm with enter
+- **Four operation modes:** install, convert, migrate, sync
+- **Visual progress tracking** - Real-time progress bars with ETA
+- **Intelligent detection** - Auto-detects source agents from directory contents
+- **Configuration intelligence** - Finds scattered configs and version conflicts
+
+### 📁 Full Directory Conversion (NEW!)
+Convert entire agent setups in one command:
+
+```bash
+# Convert all Claude skills to Codex
+cace convert-dir ~/.claude --to codex --backup
+
+# Preview changes with dry-run
+cace convert-dir ./.claude --to gemini --dry-run
+
+# Filter with patterns
+cace convert-dir ~/.claude/skills --to opencode --include "*.md" --exclude "test*"
+```
+
+**Directory Conversion Features:**
+- **Recursive processing** - Handles nested subdirectories
+- **Batch operations** - Convert hundreds of files
+- **Dry-run mode** - Preview without modifying
+- **Auto-backup** - Creates `.backup.<timestamp>` files
+- **Per-file fidelity** - Individual scores and warnings
+
+### 🎮 Interactive REPL Mode
 The easiest way to use CACE - guided prompts, rich visuals, and zero learning curve:
 
 ```bash
 cace interactive
 ```
 
-**Interactive Commands:**
-- `convert [file]` - Guided file conversion with visual fidelity scores
-- `validate [file]` - Interactive validation with detailed reports
-- `agents` - Browse all 6 supported agents with features
-- `demo` - Run a guided tutorial for new users
-- `config` - Set preferences (verbose, strict, defaults)
-
-### 🎨 Beautiful Visual Outputs
-- Visual fidelity scores with progress bars (e.g., `92% [█████████░]`)
-- Color-coded severity levels (🔴 Critical, 🟡 Warning, 🔵 Info)
-- Emoji indicators for instant status recognition
-- 6×6 compatibility matrix in `cace doctor`
-
-### 🤖 6 Agent Support (NEW!)
-Now supports **all major AI coding agents**:
+### 🤖 6 Agent Support
+Supports **all major AI coding agents**:
 1. **Claude Code** - Rich skills with agent delegation
 2. **OpenCode** - Permission-based security model
 3. **Cursor** - .mdc rules and commands
 4. **Windsurf** - Skills, Workflows, and Cascade
-5. **OpenAI Codex** - MCP servers and approval policies ⭐ NEW
-6. **Google Gemini CLI** - Code execution and multi-directory ⭐ NEW
+5. **OpenAI Codex** - MCP servers and approval policies
+6. **Google Gemini CLI** - Code execution and multi-directory
 
 ---
 
-## 🚀 Quick Start (3 Options)
+## 🚀 Quick Start (4 Options)
 
-### Option 1: Interactive Mode ⭐ **RECOMMENDED FOR NEW USERS**
-The easiest way to start with guided prompts and visual feedback:
+### Option 1: Multi-Select Wizard ⭐ **RECOMMENDED FOR COMPLEX OPERATIONS**
+Perfect for multi-agent installations and batch conversions with an intuitive arrow-key interface:
 
 ```bash
 # Install globally
 npm install -g cace-cli
 
+# Start the wizard
+cace wizard
+# Or use the shortcut
+cace w
+```
+
+**Wizard Modes:**
+- **Install** - Multi-select agents to install with intelligent level detection
+- **Convert** - Convert entire scaffolding directories with visual progress
+- **Migrate** - Full migration with validation and conflict detection
+- **Sync** - Sync user and project configurations
+
+**Example wizard session:**
+```
+? Select operation mode: [Use arrows, space to select, enter to confirm]
+❯◯ Install    - Fresh installation with multi-agent selection
+ ◉ Convert    - Convert entire scaffolding directories
+ ◯ Migrate    - Migration with validation
+ ◯ Sync       - Sync user and project configurations
+
+? Select source agents: [Use arrows, space to select, enter to confirm]
+ ◉ claude    ✓ 12 components found
+ ◯ opencode  ✗ No components found
+ ◯ cursor    ✓ 3 components found
+ ◯ windsurf  ✗ No components found
+ ◉ codex     ✓ 8 components found
+ ◯ gemini    ✗ No components found
+```
+
+### Option 2: Directory Conversion ⭐ **FOR BULK OPERATIONS**
+Convert entire agent setups in one command:
+
+```bash
+# Convert all Claude skills to Codex with backup
+cace convert-dir ~/.claude --to codex --backup
+
+# Preview changes (dry-run)
+cace convert-dir ./.claude --to gemini --dry-run --verbose
+
+# Convert with filters
+cace convert-dir ~/.claude/skills --to opencode --include "*.md" --exclude "test*"
+```
+
+### Option 3: Interactive Mode ⭐ **FOR GUIDED WORKFLOWS**
+The easiest way to start with guided prompts and visual feedback:
+
+```bash
 # Start interactive mode
 cace interactive
-
 # Or use the shortcut
 cace i
 ```
@@ -66,17 +134,15 @@ cace i
 cace> demo              # Run the guided tutorial
 cace> convert my-skill.md   # Convert with visual guidance
 cace> validate my-skill.md  # Validate interactively
+cace> wizard            # Launch the multi-select wizard
 cace> agents            # See all 6 supported agents
 cace> help              # Show all commands
 ```
 
-### Option 2: Standard CLI (For Power Users)
+### Option 4: Standard CLI (For Power Users)
 Direct command-line usage with rich output:
 
 ```bash
-# Install globally
-npm install -g cace-cli
-
 # Convert with beautiful visual output
 cace convert my-skill.md --to codex
 
@@ -87,7 +153,7 @@ cace validate my-skill.md --agent claude
 cace doctor
 ```
 
-### Option 3: Local Development
+### Local Development
 For contributing or testing:
 
 ```bash
@@ -103,7 +169,7 @@ npm test
 
 # Build and run locally
 npm run build
-node dist/cli/index.js interactive
+node dist/cli/index.js wizard
 ```
 
 ---
@@ -261,8 +327,8 @@ cace i               # Shortcut alias
 $ cace interactive
 
 ╔══════════════════════════════════════════════════════════════╗
-║                CACE - Interactive Mode v2.1.0                ║
-║     Cross-Agent Compatibility Engine - 6 Agents Supported    ║
+║                CACE - Interactive Mode v2.2.0                ║
+║  Cross-Agent Compatibility Engine - 6 Agents + Wizard Mode   ║
 ╚══════════════════════════════════════════════════════════════╝
 
 🚀 Welcome to CACE Interactive Mode!
