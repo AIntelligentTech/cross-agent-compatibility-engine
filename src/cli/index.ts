@@ -26,7 +26,7 @@ const program = new Command();
 program
   .name("cace")
   .description("Cross-Agent Compatibility Engine - Convert and validate AI agent components")
-  .version("2.1.0");
+  .version("2.1.1");
 
 // ============================================================================
 // INTERACTIVE MODE
