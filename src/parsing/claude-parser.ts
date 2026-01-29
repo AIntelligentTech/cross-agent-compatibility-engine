@@ -77,6 +77,13 @@ export class ClaudeParser extends BaseParser {
     | ReturnType<typeof this.createErrorResult> {
     const warnings: string[] = [];
 
+    // Validate content is not empty
+    if (!content || content.trim().length === 0) {
+      return this.createErrorResult([
+        "Content is empty. Please provide valid component content.",
+      ]);
+    }
+
     let parsed: matter.GrayMatterFile<string>;
     try {
       parsed = matter(content);
@@ -156,7 +163,21 @@ export class ClaudeParser extends BaseParser {
       warnings.push(`Sub-agent "${fm.agent}" is Claude-specific`);
     }
 
-    return this.createSuccessResult(spec, warnings);
+    // Perform validation if requested
+    let validation;
+    if (options?.validateOnParse) {
+      validation = this.validateContent(content, "skill", {
+        version: `${version.major}.${version.minor}.${version.patch}`,
+        strict: options?.strictValidation,
+      });
+      
+      // Add validation warnings to result
+      for (const warning of validation.warnings) {
+        warnings.push(`[Validation] ${warning.message}`);
+      }
+    }
+
+    return this.createSuccessResult(spec, warnings, validation);
   }
 
   private extractIdFromFilename(filename?: string): string | undefined {

@@ -142,6 +142,7 @@ const ADAPTERS: Record<AgentId, Record<string, AdapterFunction>> = {
   cursor: CURSOR_ADAPTERS,
   windsurf: WINDSURF_ADAPTERS,
   gemini: {},
+  codex: {},
   universal: {},
   opencode: {},
   aider: {},

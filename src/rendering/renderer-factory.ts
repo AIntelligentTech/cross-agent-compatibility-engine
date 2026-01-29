@@ -8,6 +8,9 @@ import { ClaudeRenderer } from "./claude-renderer.js";
 import { WindsurfRenderer } from "./windsurf-renderer.js";
 import { CursorRenderer } from "./cursor-renderer.js";
 import { UniversalRenderer } from "./universal-renderer.js";
+import { OpenCodeRenderer } from "./opencode-renderer.js";
+import { CodexRenderer } from "./codex-renderer.js";
+import { GeminiRenderer } from "./gemini-renderer.js";
 
 const renderers: Map<AgentId, AgentRenderer> = new Map();
 
@@ -16,6 +19,9 @@ renderers.set("claude", new ClaudeRenderer());
 renderers.set("windsurf", new WindsurfRenderer());
 renderers.set("cursor", new CursorRenderer());
 renderers.set("universal", new UniversalRenderer());
+renderers.set("opencode", new OpenCodeRenderer());
+renderers.set("codex", new CodexRenderer());
+renderers.set("gemini", new GeminiRenderer());
 
 export function getRenderer(agentId: AgentId): AgentRenderer | undefined {
   return renderers.get(agentId);

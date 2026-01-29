@@ -53,10 +53,10 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
   gemini: {
     id: 'gemini',
     displayName: 'Gemini CLI',
-    componentTypes: ['memory', 'config'],
+    componentTypes: ['skill', 'command', 'memory', 'config'],
     fileExtension: '.md',
     configLocations: {
-      project: '.',
+      project: '.gemini',
       user: '~/.gemini',
     },
   },
@@ -78,6 +78,16 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
     configLocations: {
       project: '.opencode',
       user: '~/.config/opencode',
+    },
+  },
+  codex: {
+    id: 'codex',
+    displayName: 'OpenAI Codex',
+    componentTypes: ['skill', 'command', 'memory', 'rule', 'config'],
+    fileExtension: '.md',
+    configLocations: {
+      project: '.codex/skills',
+      user: '~/.codex',
     },
   },
   aider: {
@@ -111,19 +121,26 @@ export const COMPONENT_TYPE_EQUIVALENTS: Record<ComponentType, Partial<Record<Ag
     claude: 'skill',
     windsurf: 'workflow',
     cursor: 'command',
+    codex: 'skill',
+    gemini: 'skill',
   },
   workflow: {
     claude: 'skill',
     windsurf: 'workflow',
     cursor: 'command',
+    codex: 'skill',
+    gemini: 'skill',
   },
   command: {
     claude: 'skill',
     windsurf: 'workflow',
     cursor: 'command',
+    codex: 'command',
+    gemini: 'command',
   },
   rule: {
     windsurf: 'rule',
+    codex: 'rule',
   },
   hook: {
     claude: 'hook',
@@ -131,6 +148,8 @@ export const COMPONENT_TYPE_EQUIVALENTS: Record<ComponentType, Partial<Record<Ag
   memory: {
     claude: 'memory',
     windsurf: 'memory',
+    codex: 'memory',
+    gemini: 'memory',
   },
   agent: {
     claude: 'agent',
@@ -148,7 +167,7 @@ export const COMPONENT_TYPE_EQUIVALENTS: Record<ComponentType, Partial<Record<Ag
 
 export const DEFAULT_VERSION = { major: 1, minor: 0, patch: 0 };
 
-export const SUPPORTED_AGENTS: AgentId[] = ['claude', 'windsurf', 'cursor', 'opencode', 'gemini', 'universal'];
+export const SUPPORTED_AGENTS: AgentId[] = ['claude', 'windsurf', 'cursor', 'opencode', 'gemini', 'codex', 'universal'];
 
 // ============================================================================
 // File Patterns
@@ -189,5 +208,10 @@ export const AGENT_FILE_PATTERNS: Record<AgentId, RegExp[]> = {
   ],
   continue: [
     /\.continue\/commands\/.*\.md$/,
+  ],
+  codex: [
+    /\.codex\/skills\/.*\/SKILL\.md$/,
+    /\.codex\/.*\.md$/,
+    /CODEX\.md$/,
   ],
 };

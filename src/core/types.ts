@@ -7,7 +7,7 @@
 // Agent Identifiers
 // ============================================================================
 
-export type AgentId = 'claude' | 'windsurf' | 'cursor' | 'gemini' | 'universal' | 'opencode' | 'aider' | 'continue';
+export type AgentId = 'claude' | 'windsurf' | 'cursor' | 'gemini' | 'universal' | 'opencode' | 'aider' | 'continue' | 'codex';
 
 export interface AgentDescriptor {
   id: AgentId;
@@ -154,9 +154,11 @@ export function createDefaultCapabilities(): CapabilitySet {
 
 export interface SemanticIntent {
   summary: string;
-  purpose: string;
+  purpose?: string;
+  detailed?: string;
   whenToUse?: string;
   category?: string[];
+  examples?: string[];
 }
 
 // ============================================================================
@@ -171,6 +173,24 @@ export interface ComponentMetadata {
   tags?: string[];
   sourceFile?: string;
   originalFormat?: string;
+  // Codex-specific
+  model?: string;
+  approvalPolicy?: string;
+  sandboxMode?: string;
+  webSearch?: string;
+  mcpServers?: Record<string, unknown>;
+  allowedTools?: string[];
+  tools?: string[];
+  features?: Record<string, boolean>;
+  subtask?: boolean;
+  mode?: string;
+  // Gemini-specific
+  temperature?: number;
+  maxTokens?: number;
+  codeExecution?: boolean;
+  googleSearch?: boolean;
+  includeDirectories?: string[];
+  instruction?: string;
 }
 
 // ============================================================================
@@ -225,7 +245,7 @@ export interface ComponentSpec {
 // Conversion Report
 // ============================================================================
 
-export type LossCategory = 'activation' | 'execution' | 'capability' | 'metadata' | 'content';
+export type LossCategory = 'activation' | 'execution' | 'capability' | 'metadata' | 'content' | 'security' | 'configuration' | 'tools';
 export type LossSeverity = 'info' | 'warning' | 'critical';
 
 export interface ConversionLoss {

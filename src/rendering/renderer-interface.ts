@@ -13,6 +13,7 @@ import {
   needsAdaptation,
   getDefaultTargetVersion,
 } from "../versioning/version-adapter.js";
+import { validate, type ValidationResult } from "../validation/index.js";
 
 export interface RenderOptions {
   includeComments?: boolean;
@@ -21,6 +22,10 @@ export interface RenderOptions {
   targetVersion?: string;
   /** Source version (for adaptation) */
   sourceVersion?: string;
+  /** Validate output after rendering */
+  validateOutput?: boolean;
+  /** Strict validation mode */
+  strictValidation?: boolean;
 }
 
 export interface AgentRenderer {
@@ -161,5 +166,16 @@ export abstract class BaseRenderer implements AgentRenderer {
       command: "command",
     };
     return mappings[sourceType] ?? sourceType;
+  }
+
+  /**
+   * Validate rendered output using the validation framework
+   */
+  protected validateOutput(
+    content: string,
+    componentType: ComponentSpec["componentType"],
+    options?: { version?: string; strict?: boolean }
+  ): ValidationResult {
+    return validate(content, this.agentId, componentType, options);
   }
 }

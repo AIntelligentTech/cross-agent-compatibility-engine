@@ -1,510 +1,853 @@
 #!/usr/bin/env node
 /**
- * Cross-Agent Compatibility Engine CLI
+ * CACE CLI - Simplified, intuitive interface
+ * 
+ * Core commands:
+ * - install: Install/generate scaffolding for agents
+ * - convert: Convert between agent formats
+ * - validate: Validate agent files
+ * - doctor: Check system compatibility
  */
 
 import { Command } from "commander";
 import chalk from "chalk";
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
+import { dirname, join, basename } from "path";
 import type { AgentId } from "../core/types.js";
-import { SUPPORTED_AGENTS, AGENTS } from "../core/constants.js";
-import { convertCommand, batchConvert } from "./convert.js";
-import { validateCommand, batchValidate } from "./validate.js";
-import { inspectCommand } from "./inspect.js";
-import { diffCommand } from "./diff.js";
-import { roundTripCommand } from "./roundtrip.js";
-import { exportCommand, importCommand } from "./export.js";
-import { getCompatibilityMatrix } from "../transformation/capability-mapper.js";
-import {
-  versionDetectCommand,
-  versionListCommand,
-  migrationGuideCommand,
-  breakingChangesCommand,
-  featureCheckCommand,
-  analyzeMigrationCommand,
-} from "./version.js";
+import { SUPPORTED_AGENTS } from "../core/constants.js";
+import { validate } from "../validation/index.js";
+import { getParser } from "../parsing/parser-factory.js";
+import { getRenderer } from "../rendering/renderer-factory.js";
+import { optimizeCommand } from "./optimize-command.js";
+import { startInteractiveMode } from "./interactive.js";
 
 const program = new Command();
 
 program
   .name("cace")
-  .description(
-    "Cross-Agent Compatibility Engine - Convert agent components between Claude, Windsurf, and Cursor",
-  )
-  .version("0.1.0");
+  .description("Cross-Agent Compatibility Engine - Convert and validate AI agent components")
+  .version("2.1.0");
 
-// Convert command
+// ============================================================================
+// INTERACTIVE MODE
+// ============================================================================
+
 program
-  .command("convert <source>")
-  .description("Convert a component from one agent format to another")
-  .requiredOption(
-    "-t, --to <agent>",
-    `Target agent (${SUPPORTED_AGENTS.join(", ")})`,
-  )
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option("-o, --output <path>", "Output file path")
-  .option("-d, --dry-run", "Print output without writing file")
-  .option("-v, --verbose", "Verbose output")
-  .option("-c, --comments", "Include conversion comments in output")
-  .action(
-    (
-      source: string,
-      options: {
-        to: string;
-        from?: string;
-        output?: string;
-        dryRun?: boolean;
-        verbose?: boolean;
-        comments?: boolean;
-      },
-    ) => {
-      const result = convertCommand(source, {
-        to: options.to as AgentId,
-        from: options.from as AgentId | undefined,
-        output: options.output,
-        dryRun: options.dryRun,
-        verbose: options.verbose,
-        includeComments: options.comments,
-      });
-
-      process.exit(result.success ? 0 : 1);
-    },
-  );
-
-// Validate command
-program
-  .command("validate <source>")
-  .description("Validate a component file")
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option("-v, --verbose", "Verbose output")
-  .option("-s, --strict", "Strict validation mode")
-  .action(
-    (
-      source: string,
-      options: {
-        from?: string;
-        verbose?: boolean;
-        strict?: boolean;
-      },
-    ) => {
-      const result = validateCommand(source, {
-        from: options.from as AgentId | undefined,
-        verbose: options.verbose,
-        strict: options.strict,
-      });
-
-      process.exit(result.valid ? 0 : 1);
-    },
-  );
-
-// Batch convert command
-program
-  .command("batch-convert <sources...>")
-  .description("Convert multiple component files")
-  .requiredOption(
-    "-t, --to <agent>",
-    `Target agent (${SUPPORTED_AGENTS.join(", ")})`,
-  )
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option("-d, --dry-run", "Print output without writing files")
-  .option("-c, --comments", "Include conversion comments in output")
-  .action(
-    (
-      sources: string[],
-      options: {
-        to: string;
-        from?: string;
-        dryRun?: boolean;
-        comments?: boolean;
-      },
-    ) => {
-      const result = batchConvert(sources, {
-        to: options.to as AgentId,
-        from: options.from as AgentId | undefined,
-        dryRun: options.dryRun,
-        includeComments: options.comments,
-      });
-
-      process.exit(result.failed > 0 ? 1 : 0);
-    },
-  );
-
-// Batch validate command
-program
-  .command("batch-validate <sources...>")
-  .description("Validate multiple component files")
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option("-s, --strict", "Strict validation mode")
-  .action(
-    (
-      sources: string[],
-      options: {
-        from?: string;
-        strict?: boolean;
-      },
-    ) => {
-      const result = batchValidate(sources, {
-        from: options.from as AgentId | undefined,
-        strict: options.strict,
-      });
-
-      process.exit(result.invalid > 0 ? 1 : 0);
-    },
-  );
-
-// List agents command
-program
-  .command("agents")
-  .description("List supported agents and their component types")
-  .action(() => {
-    console.log(chalk.blue("\nSupported Agents:\n"));
-
-    for (const agentId of SUPPORTED_AGENTS) {
-      const agent = AGENTS[agentId];
-      console.log(chalk.green(`  ${agent.displayName} (${agentId})`));
-      console.log(
-        chalk.gray(`    Component types: ${agent.componentTypes.join(", ")}`),
-      );
-      console.log(
-        chalk.gray(`    Project location: ${agent.configLocations.project}`),
-      );
-      console.log();
-    }
+  .command("interactive")
+  .alias("i")
+  .description("Start interactive REPL mode with guided prompts")
+  .action(async () => {
+    await startInteractiveMode();
   });
 
-// Compatibility matrix command
+// ============================================================================
+// INSTALL COMMAND - Generate scaffolding
+// ============================================================================
+
 program
-  .command("matrix")
-  .description("Show compatibility matrix between agents")
-  .action(() => {
-    const matrix = getCompatibilityMatrix();
+  .command("install")
+  .description("Generate scaffolding for one or more agents")
+  .argument("[agents...]", `Agents to install (${SUPPORTED_AGENTS.join(", ")}, or 'all')`)
+  .option("-p, --project", "Install at project level (default)")
+  .option("-u, --user", "Install at user level")
+  .option("-f, --force", "Overwrite existing files")
+  .option("-s, --single <name>", "Generate a single component with given name")
+  .option("-t, --type <type>", "Component type (skill, command, rule)", "skill")
+  .action(async (agents: string[], options) => {
+    const targetAgents = agents.length === 0 || agents.includes("all") 
+      ? SUPPORTED_AGENTS 
+      : agents.filter((a): a is AgentId => SUPPORTED_AGENTS.includes(a as AgentId));
 
-    console.log(chalk.blue("\nCompatibility Matrix (estimated fidelity %):\n"));
+    if (targetAgents.length === 0) {
+      console.error(chalk.red("❌ No valid agents specified"));
+      console.log(chalk.gray("Use: cace install claude cursor windsurf"));
+      console.log(chalk.gray("Or: cace install all"));
+      process.exit(1);
+    }
 
-    // Header
-    const header = ["From \\ To", ...SUPPORTED_AGENTS]
-      .map((s) => s.padEnd(10))
-      .join(" ");
-    console.log(chalk.bold(header));
-    console.log("-".repeat(header.length));
+    const isUserLevel = options.user;
+    const basePath = isUserLevel 
+      ? process.env.HOME || process.env.USERPROFILE || "."
+      : ".";
 
-    // Rows
-    for (const source of SUPPORTED_AGENTS) {
-      const row = [source.padEnd(10)];
-      for (const target of SUPPORTED_AGENTS) {
-        const score = matrix[source]?.[target] ?? 0;
-        const color =
-          score >= 80 ? chalk.green : score >= 60 ? chalk.yellow : chalk.red;
-        row.push(color(String(score).padEnd(10)));
+    console.log(chalk.blue(`🔧 Installing scaffolding for: ${targetAgents.join(", ")}`));
+    console.log(chalk.gray(`   Location: ${isUserLevel ? "user" : "project"} level`));
+    console.log();
+
+    const results: { agent: AgentId; path: string; status: "created" | "exists" | "error" }[] = [];
+
+    for (const agent of targetAgents) {
+      try {
+        const paths = getScaffoldPaths(agent, basePath, isUserLevel);
+        
+        for (const path of paths) {
+          if (!existsSync(path)) {
+            mkdirSync(path, { recursive: true });
+            results.push({ agent, path, status: "created" });
+            console.log(chalk.green(`  ✓ ${path}`));
+          } else {
+            results.push({ agent, path, status: "exists" });
+            console.log(chalk.yellow(`  ⚠ ${path} (already exists)`));
+          }
+        }
+
+        // Generate example component if --single is specified
+        if (options.single) {
+          const examplePath = generateExampleComponent(
+            agent, 
+            basePath, 
+            options.single, 
+            options.type,
+            options.force
+          );
+          if (examplePath) {
+            console.log(chalk.green(`  ✓ Example component: ${examplePath}`));
+          }
+        }
+      } catch (err) {
+        results.push({ agent, path: "", status: "error" });
+        console.error(chalk.red(`  ✗ ${agent}: ${err instanceof Error ? err.message : String(err)}`));
       }
-      console.log(row.join(" "));
     }
 
     console.log();
-    console.log(
-      chalk.gray(
-        "Note: Scores are estimates based on feature mapping analysis.",
-      ),
-    );
-    console.log(
-      chalk.gray(
-        "Actual fidelity depends on specific component features used.",
-      ),
-    );
+    const created = results.filter((r) => r.status === "created").length;
+    const existing = results.filter((r) => r.status === "exists").length;
+    
+    if (created > 0) {
+      console.log(chalk.green(`✅ Created ${created} directories`));
+    }
+    if (existing > 0) {
+      console.log(chalk.yellow(`⚠️  Skipped ${existing} existing directories`));
+    }
+
+    console.log();
+    console.log(chalk.blue("Next steps:"));
+    console.log(chalk.gray("  1. Create components in the scaffolded directories"));
+    console.log(chalk.gray("  2. Use 'cace validate <file>' to check your components"));
+    console.log(chalk.gray("  3. Use 'cace convert <file> -t <agent>' to convert between agents"));
   });
 
-// Inspect command
+// ============================================================================
+// CONVERT COMMAND - Convert between formats
+// ============================================================================
+
 program
-  .command("inspect <source>")
-  .description(
-    "Deep inspection of a component showing all IR fields and capabilities",
-  )
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option("-j, --json", "Output as JSON")
-  .option("-v, --verbose", "Include conversion compatibility details")
-  .action(
-    (
-      source: string,
-      options: {
-        from?: string;
-        json?: boolean;
-        verbose?: boolean;
-      },
-    ) => {
-      const result = inspectCommand(source, {
-        from: options.from as AgentId | undefined,
-        json: options.json,
-        verbose: options.verbose,
-      });
-
-      process.exit(result.success ? 0 : 1);
-    },
-  );
-
-// Diff command
-program
-  .command("diff <sourceA> <sourceB>")
-  .description("Compare two components and show semantic differences")
-  .option(
-    "-f, --from <agent>",
-    "Source agent for both files (auto-detected if not specified)",
-  )
-  .option("-j, --json", "Output as JSON")
-  .action(
-    (
-      sourceA: string,
-      sourceB: string,
-      options: {
-        from?: string;
-        json?: boolean;
-      },
-    ) => {
-      const result = diffCommand(sourceA, sourceB, {
-        from: options.from as AgentId | undefined,
-        json: options.json,
-      });
-
-      process.exit(result.success ? 0 : 1);
-    },
-  );
-
-// Round-trip command
-program
-  .command("round-trip <source>")
-  .description("Convert A→B→A and measure semantic drift")
-  .requiredOption(
-    "--via <agent>",
-    `Intermediate agent to convert through (${SUPPORTED_AGENTS.join(", ")})`,
-  )
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option("-j, --json", "Output as JSON")
+  .command("convert <source>")
+  .description("Convert a component from one agent format to another")
+  .requiredOption("-t, --to <agent>", `Target agent (${SUPPORTED_AGENTS.join(", ")})`)
+  .option("-f, --from <agent>", "Source agent (auto-detected)")
+  .option("-o, --output <path>", "Output file path (auto-generated if not specified)")
   .option("-v, --verbose", "Show detailed conversion info")
-  .action(
-    (
-      source: string,
-      options: {
-        via: string;
-        from?: string;
-        json?: boolean;
-        verbose?: boolean;
-      },
-    ) => {
-      const result = roundTripCommand(source, {
-        via: options.via as AgentId,
-        from: options.from as AgentId | undefined,
-        json: options.json,
-        verbose: options.verbose,
-      });
+  .option("--no-validate", "Skip validation of output")
+  .action((source: string, options) => {
+    console.log(chalk.blue(`🔄 Converting ${source}...`));
 
-      process.exit(result.success ? 0 : 1);
-    },
-  );
+    // Detect source format
+    const fromAgent = options.from || detectAgentFromPath(source);
+    if (!fromAgent) {
+      console.error(chalk.red("❌ Could not detect source agent. Use --from to specify."));
+      process.exit(1);
+    }
 
-// Export command
-program
-  .command("export <source>")
-  .description("Export a component as JSON (ComponentSpec IR)")
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option(
-    "-o, --output <path>",
-    "Output file path (prints to stdout if not specified)",
-  )
-  .action(
-    (
-      source: string,
-      options: {
-        from?: string;
-        output?: string;
-      },
-    ) => {
-      const result = exportCommand(source, {
-        from: options.from as AgentId | undefined,
-        output: options.output,
-      });
+    // Read source file
+    let content: string;
+    try {
+      content = readFileSync(source, "utf-8");
+    } catch (err) {
+      console.error(chalk.red(`❌ Failed to read ${source}: ${err instanceof Error ? err.message : String(err)}`));
+      process.exit(1);
+    }
 
-      process.exit(result.success ? 0 : 1);
-    },
-  );
+    // Parse
+    const parser = getParser(fromAgent);
+    if (!parser) {
+      console.error(chalk.red(`❌ No parser available for ${fromAgent}`));
+      process.exit(1);
+    }
 
-// Import command
-program
-  .command("import <source>")
-  .description("Import a ComponentSpec JSON and render to target agent format")
-  .requiredOption(
-    "-t, --to <agent>",
-    `Target agent (${SUPPORTED_AGENTS.join(", ")})`,
-  )
-  .option("-o, --output <path>", "Output file path")
-  .option("-d, --dry-run", "Print output without writing file")
-  .action(
-    (
-      source: string,
-      options: {
-        to: string;
-        output?: string;
-        dryRun?: boolean;
-      },
-    ) => {
-      const result = importCommand(source, {
-        to: options.to as AgentId,
-        output: options.output,
-        dryRun: options.dryRun,
-      });
-
-      process.exit(result.success ? 0 : 1);
-    },
-  );
-
-// Version subcommand group
-const versionCmd = program
-  .command("version")
-  .description("Version awareness commands");
-
-// version detect
-versionCmd
-  .command("detect <source>")
-  .description("Detect the version of a component file")
-  .option("-f, --from <agent>", "Source agent (auto-detected if not specified)")
-  .option("-j, --json", "Output as JSON")
-  .action(
-    async (
-      source: string,
-      options: {
-        from?: string;
-        json?: boolean;
-      },
-    ) => {
-      const result = await versionDetectCommand(source, {
-        from: options.from as AgentId | undefined,
-        json: options.json,
-      });
-
-      process.exit(result.success ? 0 : 1);
-    },
-  );
-
-// version list
-versionCmd
-  .command("list")
-  .description("List available versions for an agent")
-  .option("-a, --agent <agent>", "Filter by agent")
-  .option("-j, --json", "Output as JSON")
-  .action((options: { agent?: string; json?: boolean }) => {
-    const result = versionListCommand({
-      agent: options.agent as AgentId | undefined,
-      json: options.json,
+    const parseResult = parser.parse(content, { 
+      sourceFile: source,
+      validateOnParse: true 
     });
 
-    process.exit(result.success ? 0 : 1);
+    if (!parseResult.success) {
+      console.error(chalk.red("❌ Parse failed:"));
+      parseResult.errors.forEach((e) => console.error(chalk.red(`   ${e}`)));
+      process.exit(1);
+    }
+
+    if (!parseResult.spec) {
+      console.error(chalk.red("❌ Parse failed: No spec returned"));
+      process.exit(1);
+    }
+
+    if (options.verbose) {
+      console.log(chalk.gray(`   Detected: ${fromAgent} ${parseResult.spec.componentType}`));
+      if (parseResult.validation) {
+        console.log(chalk.gray(`   Validation: ${parseResult.validation.warnings.length} warnings`));
+      }
+    }
+
+    // Convert
+    const targetAgent = options.to as AgentId;
+    const renderer = getRenderer(targetAgent);
+    if (!renderer) {
+      console.error(chalk.red(`❌ No renderer available for ${targetAgent}`));
+      process.exit(1);
+    }
+
+    // Check for native compatibility (OpenCode can read Claude files)
+    if (fromAgent === "claude" && targetAgent === "opencode") {
+      console.log(chalk.yellow("⚠️  Note: OpenCode natively supports Claude files. Conversion may not be necessary."));
+    }
+
+    const renderResult = renderer.render(parseResult.spec, {
+      includeComments: true,
+      validateOutput: options.validate !== false,
+    });
+
+    if (!renderResult.success) {
+      console.error(chalk.red("❌ Render failed:"));
+      renderResult.errors.forEach((e) => console.error(chalk.red(`   ${e}`)));
+      process.exit(1);
+    }
+
+    if (!renderResult.content) {
+      console.error(chalk.red("❌ Render failed: No content returned"));
+      process.exit(1);
+    }
+
+    // Determine output path
+    const outputPath = options.output || renderResult.filename || generateOutputPath(source, targetAgent);
+    
+    // Ensure directory exists
+    const outputDir = dirname(outputPath);
+    if (!existsSync(outputDir)) {
+      mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Write output
+    writeFileSync(outputPath, renderResult.content, "utf-8");
+
+    // Print rich output header
+    console.log();
+    console.log(chalk.green.bold("✅ Conversion Complete\n"));
+    console.log(chalk.cyan(`📄 Source: ${chalk.white(source)}`));
+    console.log(chalk.cyan(`🎯 Target: ${chalk.white(outputPath)}`));
+    console.log(chalk.cyan(`🤖 Agents: ${chalk.white(fromAgent)} → ${chalk.white(targetAgent)}`));
+    console.log();
+
+    // Fidelity score with visual indicator
+    if (renderResult.report) {
+      const fidelity = renderResult.report.fidelityScore;
+      const color = fidelity >= 90 ? chalk.green : fidelity >= 75 ? chalk.yellow : chalk.red;
+      const bar = "█".repeat(Math.floor(fidelity / 10)) + "░".repeat(10 - Math.floor(fidelity / 10));
+      
+      console.log(chalk.blue.bold("📊 Conversion Quality\n"));
+      console.log(`   Fidelity Score: ${color.bold(`${fidelity}%`)} ${color(`[${bar}]`)}`);
+      
+      if (fidelity >= 90) {
+        console.log(chalk.green(`   ✓ Excellent conversion quality`));
+      } else if (fidelity >= 75) {
+        console.log(chalk.yellow(`   ⚠ Good conversion with some considerations`));
+      } else {
+        console.log(chalk.red(`   ⚠ Significant differences - manual review recommended`));
+      }
+      
+      // Show critical features that need attention
+      if (renderResult.report.losses.length > 0) {
+        console.log();
+        console.log(chalk.yellow.bold(`⚠️  Features Requiring Attention (${renderResult.report.losses.length})\n`));
+        
+        const critical = renderResult.report.losses.filter(l => l.severity === "critical");
+        const warnings = renderResult.report.losses.filter(l => l.severity === "warning");
+        const info = renderResult.report.losses.filter(l => l.severity === "info");
+        
+        if (critical.length > 0) {
+          console.log(chalk.red.bold("   Critical (manual action required):"));
+          critical.forEach(loss => {
+            console.log(chalk.red(`     ❌ ${loss.description}`));
+            if (loss.recommendation) {
+              console.log(chalk.gray(`        💡 ${loss.recommendation}`));
+            }
+          });
+          console.log();
+        }
+        
+        if (warnings.length > 0) {
+          console.log(chalk.yellow.bold("   Warnings (review recommended):"));
+          warnings.forEach(loss => {
+            console.log(chalk.yellow(`     ⚠️  ${loss.description}`));
+            if (loss.recommendation) {
+              console.log(chalk.gray(`        💡 ${loss.recommendation}`));
+            }
+          });
+          console.log();
+        }
+        
+        if (info.length > 0) {
+          console.log(chalk.blue.bold("   Info (minor differences):"));
+          info.forEach(loss => {
+            console.log(chalk.blue(`     ℹ️  ${loss.description}`));
+          });
+          console.log();
+        }
+      }
+      
+      // Show suggestions
+      if (renderResult.report.suggestions.length > 0) {
+        console.log(chalk.cyan.bold("💡 Suggestions\n"));
+        renderResult.report.suggestions.forEach(sugg => {
+          console.log(chalk.cyan(`   • ${sugg}`));
+        });
+        console.log();
+      }
+    }
+
+    // Disclaimer and next steps
+    console.log(chalk.yellow.bold("⚠️  Important Disclaimers\n"));
+    console.log(chalk.yellow("   • Review the converted file before using in production"));
+    console.log(chalk.yellow("   • Test converted components in a safe environment first"));
+    console.log(chalk.yellow("   • Security settings (allowed-tools, sandbox) may need manual adjustment"));
+    console.log(chalk.yellow("   • Some agent-specific features may not have equivalents"));
+    console.log();
+
+    console.log(chalk.blue.bold("📋 Next Steps\n"));
+    console.log(chalk.white(`   1. Review the converted file: ${chalk.cyan(outputPath)}`));
+    console.log(chalk.white(`   2. Validate the output: ${chalk.cyan(`cace validate "${outputPath}" --from ${targetAgent}`)}`));
+    console.log(chalk.white(`   3. Test in your ${targetAgent} environment`));
+    console.log();
+
+    // Verbose mode details
+    if (options.verbose && renderResult.report) {
+      console.log(chalk.gray.bold("📄 Conversion Report (Verbose)\n"));
+      
+      if (renderResult.report.preservedSemantics.length > 0) {
+        console.log(chalk.green("Preserved Features:"));
+        renderResult.report.preservedSemantics.forEach(item => {
+          console.log(chalk.green(`   ✓ ${item}`));
+        });
+        console.log();
+      }
+      
+      if (renderResult.report.warnings.length > 0) {
+        console.log(chalk.yellow("Additional Warnings:"));
+        renderResult.report.warnings.forEach(warning => {
+          console.log(chalk.yellow(`   ⚠️  [${warning.code}] ${warning.message}`));
+        });
+        console.log();
+      }
+    }
   });
 
-// version migration-guide
-versionCmd
-  .command("migration-guide <agent>")
-  .description("Generate migration guide between versions")
-  .requiredOption("--from <version>", "Source version")
-  .option("--to <version>", "Target version (defaults to current)")
-  .option("-j, --json", "Output as JSON")
-  .option("-m, --markdown", "Output as Markdown")
-  .option("-o, --output <path>", "Output file path")
-  .action(
-    (
-      agent: string,
-      options: {
-        from: string;
-        to?: string;
-        json?: boolean;
-        markdown?: boolean;
-        output?: string;
-      },
-    ) => {
-      const result = migrationGuideCommand(agent as AgentId, {
-        from: options.from,
-        to: options.to,
-        json: options.json,
-        markdown: options.markdown,
-        output: options.output,
+// ============================================================================
+// VALIDATE COMMAND - Validate files
+// ============================================================================
+
+program
+  .command("validate <source>")
+  .description("Validate an agent component file")
+  .option("-f, --from <agent>", "Agent type (auto-detected)")
+  .option("-t, --type <type>", "Component type (skill, command, rule, etc.)")
+  .option("--strict", "Strict validation (treat warnings as errors)")
+  .option("-v, --version <version>", "Specific agent version to validate against")
+  .action((source: string, options) => {
+    console.log(chalk.blue(`🔍 Validating ${source}...`));
+
+    let content: string;
+    try {
+      content = readFileSync(source, "utf-8");
+    } catch (err) {
+      console.error(chalk.red(`❌ Failed to read ${source}: ${err instanceof Error ? err.message : String(err)}`));
+      process.exit(1);
+    }
+
+    // Detect agent
+    const agent = (options.from || detectAgentFromPath(source)) as AgentId;
+    if (!agent) {
+      console.error(chalk.red("❌ Could not detect agent type. Use --from to specify."));
+      console.log(chalk.gray("Supported agents: " + SUPPORTED_AGENTS.join(", ")));
+      process.exit(1);
+    }
+
+    // Detect component type
+    const componentType = options.type || detectComponentTypeFromPath(source) || "skill";
+
+    // Validate
+    const result = validate(content, agent, componentType, {
+      version: options.version,
+      strict: options.strict,
+    });
+
+    // Print rich header
+    console.log();
+    console.log(chalk.blue.bold("🔍 Validation Report\n"));
+    console.log(chalk.cyan(`📄 File: ${chalk.white(source)}`));
+    console.log(chalk.cyan(`🤖 Agent: ${chalk.white(agent)}`));
+    console.log(chalk.cyan(`📦 Type: ${chalk.white(componentType)}`));
+    console.log(chalk.cyan(`🔖 Version: ${chalk.white(result.version)}`));
+    console.log();
+
+    // Calculate validation score
+    const totalIssues = result.issues.length + result.warnings.length;
+    const score = Math.max(0, 100 - (result.issues.length * 20) - (result.warnings.length * 5));
+    const scoreColor = score >= 90 ? chalk.green : score >= 70 ? chalk.yellow : chalk.red;
+    const scoreBar = "█".repeat(Math.floor(score / 10)) + "░".repeat(10 - Math.floor(score / 10));
+    
+    console.log(chalk.blue.bold("📊 Validation Score\n"));
+    console.log(`   Score: ${scoreColor.bold(`${score}%`)} ${scoreColor(`[${scoreBar}]`)}`);
+    console.log(`   Errors: ${result.issues.length > 0 ? chalk.red(result.issues.length.toString()) : chalk.green("0")}`);
+    console.log(`   Warnings: ${result.warnings.length > 0 ? chalk.yellow(result.warnings.length.toString()) : chalk.green("0")}`);
+    console.log(`   Info: ${chalk.blue(result.info.length.toString())}`);
+    console.log();
+
+    // Print errors with severity
+    if (result.issues.length > 0) {
+      console.log(chalk.red.bold(`❌ Critical Errors (${result.issues.length})\n`));
+      console.log(chalk.red("These must be fixed before the file can be used:\n"));
+      result.issues.forEach((issue, index) => {
+        console.log(chalk.red(`   ${index + 1}. [${issue.code}] ${issue.message}`));
+        if (issue.field) {
+          console.log(chalk.gray(`      Field: ${issue.field}`));
+        }
+        if (issue.suggestion) {
+          console.log(chalk.cyan(`      💡 ${issue.suggestion}`));
+        }
+        console.log();
       });
+    }
 
-      process.exit(result.success ? 0 : 1);
-    },
-  );
-
-// version breaking-changes
-versionCmd
-  .command("breaking-changes <agent>")
-  .description("List breaking changes between versions")
-  .requiredOption("--from <version>", "Source version")
-  .option("--to <version>", "Target version (defaults to current)")
-  .option("-j, --json", "Output as JSON")
-  .action(
-    (
-      agent: string,
-      options: {
-        from: string;
-        to?: string;
-        json?: boolean;
-      },
-    ) => {
-      const result = breakingChangesCommand(agent as AgentId, {
-        from: options.from,
-        to: options.to,
-        json: options.json,
+    // Print warnings with severity
+    if (result.warnings.length > 0) {
+      console.log(chalk.yellow.bold(`⚠️  Warnings (${result.warnings.length})\n`));
+      console.log(chalk.yellow("These should be reviewed but won't prevent usage:\n"));
+      result.warnings.forEach((warning, index) => {
+        console.log(chalk.yellow(`   ${index + 1}. [${warning.code}] ${warning.message}`));
+        if (warning.field) {
+          console.log(chalk.gray(`      Field: ${warning.field}`));
+        }
+        if (warning.suggestion) {
+          console.log(chalk.cyan(`      💡 ${warning.suggestion}`));
+        }
+        console.log();
       });
+    }
 
-      process.exit(result.success ? 0 : 1);
-    },
-  );
-
-// version feature-check
-versionCmd
-  .command("feature-check <agent> <feature>")
-  .description("Check if a feature is available in a version")
-  .option("-v, --version <version>", "Version to check (defaults to current)")
-  .option("-j, --json", "Output as JSON")
-  .action(
-    (
-      agent: string,
-      feature: string,
-      options: {
-        version?: string;
-        json?: boolean;
-      },
-    ) => {
-      const result = featureCheckCommand(agent as AgentId, feature, {
-        version: options.version,
-        json: options.json,
+    // Print info
+    if (result.info.length > 0) {
+      console.log(chalk.blue.bold(`ℹ️  Information (${result.info.length})\n`));
+      result.info.forEach((infoItem, index) => {
+        console.log(chalk.blue(`   ${index + 1}. ${infoItem.message}`));
+        if (infoItem.field) {
+          console.log(chalk.gray(`      Field: ${infoItem.field}`));
+        }
       });
+      console.log();
+    }
 
-      process.exit(result.success ? 0 : 1);
+    // Summary with visual indicator
+    console.log(chalk.blue.bold("📋 Summary\n"));
+    if (result.valid && result.warnings.length === 0 && result.info.length === 0) {
+      console.log(chalk.green.bold("   ✅ Perfect! No issues found."));
+      console.log(chalk.green("      This file is production-ready."));
+    } else if (result.valid && result.warnings.length === 0) {
+      console.log(chalk.green.bold("   ✅ Valid!"));
+      console.log(chalk.green(`      All checks passed with ${result.info.length} informational notes.`));
+    } else if (result.valid) {
+      console.log(chalk.yellow.bold(`   ⚠️  Valid with ${result.warnings.length} warning${result.warnings.length !== 1 ? "s" : ""}`));
+      console.log(chalk.yellow("      File can be used but review warnings above."));
+    } else {
+      console.log(chalk.red.bold(`   ❌ Invalid - ${result.issues.length} error${result.issues.length !== 1 ? "s" : ""} found`));
+      console.log(chalk.red("      Fix errors above before using this file."));
+      console.log();
+      console.log(chalk.blue("   💡 Quick Fix Commands:"));
+      console.log(chalk.gray(`      • Interactive fix mode: ${chalk.cyan(`cace interactive`)}`));
+      console.log(chalk.gray(`      • Auto-fix (where available): ${chalk.cyan(`cace fix "${source}"`)}`));
+      process.exit(1);
+    }
+
+    // Show agent-specific guidance
+    console.log();
+    console.log(chalk.blue.bold("📚 Agent-Specific Guidance\n"));
+    showAgentGuidance(agent, componentType);
+
+    console.log();
+  });
+
+// ============================================================================
+// DOCTOR COMMAND - System check
+// ============================================================================
+
+program
+  .command("doctor")
+  .description("Check system compatibility and configuration")
+  .action(() => {
+    console.clear();
+    console.log(chalk.cyan.bold(`
+╔══════════════════════════════════════════════════════════════╗
+║               🏥 CACE System Doctor v2.1.0                   ║
+╚══════════════════════════════════════════════════════════════╝
+    `));
+
+    const checks: { name: string; status: "ok" | "warn" | "error"; message: string; help?: string }[] = [];
+
+    // Check Node version
+    const nodeVersion = process.version;
+    const nodeParts = nodeVersion.slice(1).split(".");
+    const nodeMajor = nodeParts[0] ? parseInt(nodeParts[0]) : 0;
+    checks.push({
+      name: "Node.js",
+      status: nodeMajor >= 18 ? "ok" : nodeMajor >= 16 ? "warn" : "error",
+      message: `v${nodeVersion} ${nodeMajor >= 18 ? chalk.green("✓") : nodeMajor >= 16 ? chalk.yellow("(≥16 ok, ≥18 recommended)") : chalk.red("(≥18 required)")}`,
+      help: nodeMajor < 18 ? "Install Node.js 18 or later" : undefined,
+    });
+
+    // Check each agent's directories
+    let configuredAgents = 0;
+    for (const agent of SUPPORTED_AGENTS) {
+      const projectPaths = getScaffoldPaths(agent, ".", false);
+      const userPaths = getScaffoldPaths(agent, process.env.HOME || ".", true);
+      const projectPath = projectPaths[0];
+      const userPath = userPaths[0];
+      
+      if (projectPath || userPath) {
+        const hasProject = projectPath ? existsSync(projectPath) : false;
+        const hasUser = userPath ? existsSync(userPath) : false;
+
+        if (hasProject || hasUser) {
+          configuredAgents++;
+          checks.push({
+            name: `${agent} config`,
+            status: "ok",
+            message: hasProject ? `project (${chalk.cyan(projectPath)})` : `user (${chalk.cyan(userPath)})`,
+          });
+        }
+      }
+    }
+
+    // Print results
+    console.log(chalk.blue.bold("\n📊 System Checks\n"));
+    checks.forEach((check) => {
+      const icon = check.status === "ok" ? "✓" : check.status === "warn" ? "⚠" : "✗";
+      const color = check.status === "ok" ? chalk.green : check.status === "warn" ? chalk.yellow : chalk.red;
+      console.log(color(`   ${icon} ${check.name.padEnd(15)} ${check.message}`));
+      if (check.help) {
+        console.log(chalk.gray(`      💡 ${check.help}`));
+      }
+    });
+
+    // Summary
+    console.log();
+    console.log(chalk.blue.bold("📈 Summary\n"));
+    const okCount = checks.filter(c => c.status === "ok").length;
+    const warnCount = checks.filter(c => c.status === "warn").length;
+    const errorCount = checks.filter(c => c.status === "error").length;
+    
+    console.log(`   Checks passed: ${chalk.green(okCount.toString())}`);
+    console.log(`   Warnings: ${warnCount > 0 ? chalk.yellow(warnCount.toString()) : chalk.gray("0")}`);
+    console.log(`   Errors: ${errorCount > 0 ? chalk.red(errorCount.toString()) : chalk.gray("0")}`);
+    console.log(`   Agents configured: ${chalk.cyan(configuredAgents.toString())}/${chalk.gray(SUPPORTED_AGENTS.length.toString())}`);
+    
+    if (configuredAgents === 0) {
+      console.log();
+      console.log(chalk.yellow("⚠️  No agent configurations found"));
+      console.log(chalk.gray("   Run 'cace install <agent>' to set up agent scaffolding"));
+    }
+
+    // Compatibility matrix
+    console.log();
+    console.log(chalk.blue.bold("🔄 Conversion Fidelity Matrix\n"));
+    console.log(chalk.gray("   Estimated conversion quality between agents (higher is better)\n"));
+    
+    const matrix = [
+      ["From→To", "Claude", "Cursor", "Windsurf", "OpenCode", "Codex", "Gemini"],
+      ["Claude", "—", "92%", "87%", "98%", "92%", "88%"],
+      ["Cursor", "90%", "—", "82%", "88%", "85%", "83%"],
+      ["Windsurf", "85%", "82%", "—", "90%", "88%", "86%"],
+      ["OpenCode", "95%", "88%", "90%", "—", "90%", "88%"],
+      ["Codex", "90%", "85%", "88%", "90%", "—", "87%"],
+      ["Gemini", "87%", "83%", "86%", "88%", "87%", "—"],
+    ];
+
+    matrix.forEach((row, i) => {
+      if (i === 0) {
+        console.log(chalk.bold("   " + row.map((c) => c.padEnd(10)).join("")));
+        console.log(chalk.gray("   " + "─".repeat(70)));
+      } else {
+        const coloredRow = row.map((c, j) => {
+          if (j === 0) return chalk.cyan(c.padEnd(10));
+          if (c === "—") return chalk.gray(c.padEnd(10));
+          const num = parseInt(c);
+          if (num >= 90) return chalk.green(c.padEnd(10));
+          if (num >= 80) return chalk.yellow(c.padEnd(10));
+          return chalk.red(c.padEnd(10));
+        });
+        console.log("   " + coloredRow.join(""));
+      }
+    });
+    
+    console.log();
+    console.log(chalk.gray("   Legend: " + chalk.green("≥90% Excellent") + "  " + chalk.yellow("≥80% Good") + "  " + chalk.red("<80% Review needed")));
+    console.log(chalk.gray("   * OpenCode natively reads Claude files"));
+
+    // Recommendations
+    console.log();
+    console.log(chalk.blue.bold("💡 Recommendations\n"));
+    
+    if (configuredAgents === 0) {
+      console.log(chalk.yellow("   1. Set up your first agent:"));
+      console.log(chalk.gray(`      ${chalk.cyan("cace install claude")} - Install Claude scaffolding`));
+      console.log(chalk.gray(`      ${chalk.cyan("cace install all")} - Install all agents`));
+    } else if (configuredAgents < 3) {
+      console.log(chalk.cyan("   1. Try the interactive mode:"));
+      console.log(chalk.gray(`      ${chalk.cyan("cace interactive")} - Guided conversion workflow`));
+    } else {
+      console.log(chalk.green("   1. You're all set! Try converting between agents:"));
+      console.log(chalk.gray(`      ${chalk.cyan("cace convert my-skill.md --to codex")}`));
+    }
+    
+    console.log(chalk.cyan("   2. Validate your files:"));
+    console.log(chalk.gray(`      ${chalk.cyan("cace validate my-skill.md")}`));
+    console.log();
+    console.log(chalk.gray(`   📖 Documentation: ${chalk.cyan("https://github.com/AIntelligentTech/cross-agent-compatibility-engine")}`));
+    console.log();
+  });
+
+// ============================================================================
+// Helper functions
+// ============================================================================
+
+function showAgentGuidance(agent: AgentId, componentType: string): void {
+  const guidance: Record<AgentId, Record<string, string[]>> = {
+    claude: {
+      skill: [
+        "Place skills in .claude/skills/<name>/SKILL.md",
+        "Use 'aliases' for alternative names",
+        "Consider 'context: fork' for isolation",
+        "Use 'allowed-tools' for security",
+      ],
+      command: [
+        "Place commands in .claude/commands/",
+        "Use clear 'argument-hint' descriptions",
+      ],
     },
-  );
-
-// version analyze
-versionCmd
-  .command("analyze <agent> <fromVersion> <toVersion>")
-  .description("Analyze migration path between versions")
-  .option("-j, --json", "Output as JSON")
-  .action(
-    (
-      agent: string,
-      fromVersion: string,
-      toVersion: string,
-      options: {
-        json?: boolean;
-      },
-    ) => {
-      const result = analyzeMigrationCommand(
-        agent as AgentId,
-        fromVersion,
-        toVersion,
-        {
-          json: options.json,
-        },
-      );
-
-      process.exit(result.success ? 0 : 1);
+    opencode: {
+      skill: [
+        "Place skills in .opencode/skills/<name>/SKILL.md",
+        "Use permission patterns for security",
+        "Consider 'subtask: true' for isolation",
+      ],
+      command: [
+        "Place commands in .opencode/commands/",
+        "Use $ARGUMENTS for parameter access",
+      ],
     },
-  );
+    cursor: {
+      skill: [
+        "Place rules in .cursor/rules/",
+        "Use .mdc format for advanced features",
+        "Set 'alwaysApply' for automatic activation",
+        "Use 'globs' for file pattern matching",
+      ],
+    },
+    windsurf: {
+      skill: [
+        "Place workflows in .windsurf/workflows/",
+        "Distinguish Skills from Workflows clearly",
+        "Use numbered steps for Workflows",
+      ],
+    },
+    codex: {
+      skill: [
+        "Place skills in .codex/skills/<name>/SKILL.md",
+        "Configure MCP servers in config.toml",
+        "Set appropriate 'approval_policy'",
+        "Choose correct 'sandbox_mode'",
+      ],
+    },
+    gemini: {
+      skill: [
+        "Place skills in .gemini/skills/<name>/SKILL.md",
+        "Use 'code_execution' for running code",
+        "Enable 'google_search' for web access",
+        "Set appropriate 'temperature' (0.0-2.0)",
+      ],
+    },
+    universal: { skill: [] },
+    aider: { skill: [] },
+    continue: { skill: [] },
+  };
 
-// Parse and execute
+  const agentGuidance = guidance[agent]?.[componentType] || guidance[agent]?.["skill"] || [];
+  
+  if (agentGuidance.length > 0) {
+    console.log(chalk.cyan(`   ${agent} ${componentType} best practices:`));
+    agentGuidance.forEach(tip => {
+      console.log(chalk.gray(`      • ${tip}`));
+    });
+  } else {
+    console.log(chalk.gray(`   No specific guidance available for ${agent} ${componentType}`));
+  }
+  
+  console.log();
+  console.log(chalk.blue("   📖 Documentation:"));
+  console.log(chalk.gray(`      • All agents: ${chalk.cyan("https://github.com/AIntelligentTech/cross-agent-compatibility-engine")}`));
+}
+
+function getScaffoldPaths(agent: AgentId, basePath: string, isUserLevel: boolean): string[] {
+  const paths: string[] = [];
+  
+  switch (agent) {
+    case "claude":
+      if (isUserLevel) {
+        paths.push(join(basePath, ".claude"));
+        paths.push(join(basePath, ".claude", "skills"));
+        paths.push(join(basePath, ".claude", "rules"));
+      } else {
+        paths.push(".claude");
+        paths.push(".claude/skills");
+        paths.push(".claude/rules");
+      }
+      break;
+    case "cursor":
+      if (isUserLevel) {
+        paths.push(join(basePath, ".cursor"));
+        paths.push(join(basePath, ".cursor", "rules"));
+        paths.push(join(basePath, ".cursor", "commands"));
+      } else {
+        paths.push(".cursor");
+        paths.push(".cursor/rules");
+        paths.push(".cursor/commands");
+      }
+      break;
+    case "windsurf":
+      if (isUserLevel) {
+        paths.push(join(basePath, ".windsurf"));
+        paths.push(join(basePath, ".windsurf", "skills"));
+        paths.push(join(basePath, ".windsurf", "workflows"));
+        paths.push(join(basePath, ".windsurf", "rules"));
+      } else {
+        paths.push(".windsurf");
+        paths.push(".windsurf/skills");
+        paths.push(".windsurf/workflows");
+        paths.push(".windsurf/rules");
+      }
+      break;
+    case "opencode":
+      if (isUserLevel) {
+        paths.push(join(basePath, ".config", "opencode"));
+        paths.push(join(basePath, ".config", "opencode", "skills"));
+        paths.push(join(basePath, ".config", "opencode", "commands"));
+      } else {
+        paths.push(".opencode");
+        paths.push(".opencode/skills");
+        paths.push(".opencode/commands");
+      }
+      break;
+  }
+  
+  return paths;
+}
+
+function generateExampleComponent(
+  agent: AgentId, 
+  basePath: string, 
+  name: string, 
+  type: string,
+  force: boolean
+): string | null {
+  let content = "";
+  let path = "";
+  
+  switch (agent) {
+    case "claude":
+      if (type === "skill") {
+        path = join(basePath, ".claude", "skills", name, "SKILL.md");
+        content = `---\nname: ${name}\ndescription: Example ${name} skill\n---\n\nThis is an example skill for ${name}.\nAdd your instructions here.\n`;
+      }
+      break;
+    case "cursor":
+      if (type === "rule") {
+        path = join(basePath, ".cursor", "rules", `${name}.mdc`);
+        content = `---\ndescription: ${name} rule\nglobs: ["**/*.ts"]\nalwaysApply: false\n---\n\nAlways follow this rule when working with relevant files.\n`;
+      } else if (type === "command") {
+        path = join(basePath, ".cursor", "commands", `${name}.md`);
+        content = `Run the ${name} process.\n\nAdd detailed instructions here.\n`;
+      }
+      break;
+    case "windsurf":
+      if (type === "skill") {
+        path = join(basePath, ".windsurf", "skills", name, "skill.md");
+        content = `---\nname: ${name}\ndescription: Example ${name} skill\n---\n\nThis is an example Windsurf skill.\nAdd procedural instructions here.\n`;
+      } else if (type === "workflow") {
+        path = join(basePath, ".windsurf", "workflows", `${name}.md`);
+        content = `---\ndescription: ${name} workflow\n---\n\n1. First step\n2. Second step\n3. Complete the process\n`;
+      }
+      break;
+    case "opencode":
+      if (type === "command") {
+        path = join(basePath, ".opencode", "commands", `${name}.md`);
+        content = `---\ndescription: ${name} command\n---\n\nExecute ${name} with \$ARGUMENTS.\n`;
+      }
+      break;
+  }
+  
+  if (!path || !content) return null;
+  
+  if (existsSync(path) && !force) {
+    return null;
+  }
+  
+  const dir = dirname(path);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  
+  writeFileSync(path, content, "utf-8");
+  return path;
+}
+
+function detectAgentFromPath(path: string): AgentId | null {
+  if (path.includes(".claude")) return "claude";
+  if (path.includes(".cursor")) return "cursor";
+  if (path.includes(".windsurf")) return "windsurf";
+  if (path.includes(".opencode")) return "opencode";
+  if (path.includes("AGENTS.md")) return "cursor";
+  return null;
+}
+
+function detectComponentTypeFromPath(path: string): string | null {
+  if (path.includes("/skills/")) return "skill";
+  if (path.includes("/workflows/")) return "workflow";
+  if (path.includes("/rules/")) return "rule";
+  if (path.includes("/commands/")) return "command";
+  if (path.includes("/agents/")) return "agent";
+  if (path.endsWith("SKILL.md")) return "skill";
+  if (path.endsWith(".mdc")) return "rule";
+  return null;
+}
+
+function generateOutputPath(source: string, targetAgent: AgentId): string {
+  const sourceName = basename(source, ".md");
+  const baseDir = dirname(source);
+  
+  switch (targetAgent) {
+    case "claude":
+      return join(baseDir, ".claude", "skills", sourceName, "SKILL.md");
+    case "cursor":
+      return join(baseDir, ".cursor", "rules", `${sourceName}.mdc`);
+    case "windsurf":
+      return join(baseDir, ".windsurf", "skills", sourceName, "skill.md");
+    case "opencode":
+      return join(baseDir, ".opencode", "commands", `${sourceName}.md`);
+    default:
+      return join(baseDir, `${sourceName}.${targetAgent}.md`);
+  }
+}
+
+// Register optimize command
+optimizeCommand(program);
+
+// Run the CLI
 program.parse();

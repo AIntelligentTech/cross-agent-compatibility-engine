@@ -8,6 +8,8 @@ import { ClaudeParser } from "./claude-parser.js";
 import { WindsurfParser } from "./windsurf-parser.js";
 import { CursorParser } from "./cursor-parser.js";
 import { UniversalParser } from "./universal-parser.js";
+import { CodexParser } from "./codex-parser.js";
+import { GeminiParser } from "./gemini-parser.js";
 
 const parsers: Map<AgentId, AgentParser> = new Map();
 
@@ -16,6 +18,8 @@ parsers.set("claude", new ClaudeParser());
 parsers.set("windsurf", new WindsurfParser());
 parsers.set("cursor", new CursorParser());
 parsers.set("universal", new UniversalParser());
+parsers.set("codex", new CodexParser());
+parsers.set("gemini", new GeminiParser());
 
 export function getParser(agentId: AgentId): AgentParser | undefined {
   return parsers.get(agentId);
@@ -39,8 +43,10 @@ export function detectAgent(
     if (filename.includes(".windsurf/")) return "windsurf";
     if (filename.includes(".cursor/")) return "cursor";
     if (filename.includes(".opencode/")) return "opencode";
+    if (filename.includes(".codex/")) return "codex";
     if (filename.endsWith("AGENTS.md")) return "universal";
     if (filename.endsWith("GEMINI.md")) return "gemini";
+    if (filename.endsWith("CODEX.md")) return "codex";
   }
 
   // Try parsers in priority order (specific formats before generic)

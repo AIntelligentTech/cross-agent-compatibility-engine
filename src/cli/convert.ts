@@ -136,3 +136,13 @@ export function batchConvert(
   console.log(chalk.blue(`\nBatch conversion complete: ${success} succeeded, ${failed} failed`));
   return { success, failed };
 }
+
+/**
+ * Convert a single file (async version for programmatic use)
+ */
+export async function convertFile(
+  sourcePath: string,
+  options: ConvertOptions
+): Promise<{ success: boolean; outputPath?: string }> {
+  return Promise.resolve(convertCommand(sourcePath, options));
+}
