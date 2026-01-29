@@ -11,22 +11,37 @@
 
 import { Command } from "commander";
 import chalk from "chalk";
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
-import { dirname, join, basename } from "path";
+import { readFileSync, existsSync, mkdirSync, writeFileSync, copyFileSync, readdirSync, statSync } from "fs";
+import { dirname, join, basename, relative, resolve } from "path";
 import type { AgentId } from "../core/types.js";
 import { SUPPORTED_AGENTS } from "../core/constants.js";
 import { validate } from "../validation/index.js";
-import { getParser } from "../parsing/parser-factory.js";
-import { getRenderer } from "../rendering/renderer-factory.js";
+import { getParser, parseComponent, detectAgent } from "../parsing/parser-factory.js";
+import { getRenderer, renderComponent } from "../rendering/renderer-factory.js";
+import { AGENTS } from "../core/constants.js";
 import { optimizeCommand } from "./optimize-command.js";
 import { startInteractiveMode } from "./interactive.js";
+import { startWizard } from "./wizard.js";
 
 const program = new Command();
 
 program
   .name("cace")
   .description("Cross-Agent Compatibility Engine - Convert and validate AI agent components")
-  .version("2.1.1");
+  .version("2.2.0");
+
+// ============================================================================
+// WIZARD MODE (Multi-Select Installation Wizard)
+// ============================================================================
+
+program
+  .command("wizard")
+  .alias("w")
+  .description("Start multi-select installation wizard for complex operations")
+  .option("-m, --mode <mode>", "Wizard mode: install, convert, migrate, sync", "install")
+  .action(async (options) => {
+    await startWizard();
+  });
 
 // ============================================================================
 // INTERACTIVE MODE
@@ -476,6 +491,214 @@ program
   });
 
 // ============================================================================
+// CONVERT-DIR COMMAND - Convert entire directories
+// ============================================================================
+
+program
+  .command("convert-dir <source>")
+  .alias("cd")
+  .description("Convert entire agent scaffolding directories (e.g., ~/.claude or ./.claude)")
+  .requiredOption("-t, --to <agent>", `Target agent (${SUPPORTED_AGENTS.join(", ")})`)
+  .option("-f, --from <agent>", "Source agent (auto-detected)")
+  .option("-o, --output <path>", "Output directory (auto-generated if not specified)")
+  .option("-r, --recursive", "Recursively process subdirectories", true)
+  .option("--dry-run", "Show what would be converted without doing it")
+  .option("--backup", "Create backups of existing files")
+  .option("--include <patterns...>", "Include files matching these patterns")
+  .option("--exclude <patterns...>", "Exclude files matching these patterns")
+  .option("-v, --verbose", "Show detailed conversion info for each file")
+  .action(async (source: string, options: { to: string; from?: string; output?: string; recursive?: boolean; dryRun?: boolean; backup?: boolean; include?: string[]; exclude?: string[]; verbose?: boolean }) => {
+    console.log(chalk.blue.bold("\n📁 Directory Conversion\n"));
+    
+    // Validate source is a directory
+    if (!existsSync(source)) {
+      console.error(chalk.red(`❌ Source directory not found: ${source}`));
+      process.exit(1);
+    }
+    
+    const sourceStat = statSync(source);
+    if (!sourceStat.isDirectory()) {
+      console.error(chalk.red(`❌ Source is not a directory: ${source}`));
+      console.log(chalk.gray("Use 'cace convert' for single file conversion."));
+      process.exit(1);
+    }
+    
+    // Validate target agent
+    if (!options.to) {
+      console.error(chalk.red("❌ Target agent is required. Use --to <agent>"));
+      process.exit(1);
+    }
+    
+    // Detect source agent
+    const fromAgent = options.from || detectAgentFromPath(source) || detectAgentFromContents(source);
+    if (!fromAgent) {
+      console.error(chalk.red("❌ Could not detect source agent from directory contents."));
+      console.log(chalk.gray("Use --from to specify the source agent explicitly."));
+      process.exit(1);
+    }
+    
+    console.log(chalk.cyan(`📄 Source: ${chalk.white(source)}`));
+    console.log(chalk.cyan(`🤖 Source Agent: ${chalk.white(fromAgent)}`));
+    console.log(chalk.cyan(`🎯 Target Agent: ${chalk.white(options.to)}`));
+    console.log();
+    
+    // Scan directory
+    console.log(chalk.blue("🔍 Scanning directory...\n"));
+    
+    const files: string[] = [];
+    const scanDir = (dir: string, depth = 0) => {
+      if (depth > 10) return; // Limit recursion
+      
+      try {
+        const entries = readdirSync(dir);
+        for (const entry of entries) {
+          const fullPath = join(dir, entry);
+          const stat = statSync(fullPath);
+          
+          if (stat.isDirectory() && options.recursive) {
+            scanDir(fullPath, depth + 1);
+          } else if (entry.endsWith(".md") || entry.endsWith(".mdc")) {
+            // Check if file matches include/exclude patterns
+            if (shouldIncludeFile(fullPath, options.include, options.exclude)) {
+              files.push(fullPath);
+            }
+          }
+        }
+      } catch (e) {
+        // Skip directories that can't be read
+      }
+    };
+    
+    scanDir(source);
+    
+    if (files.length === 0) {
+      console.log(chalk.yellow("⚠️  No convertible files found in directory."));
+      console.log(chalk.gray("Supported files: *.md, *.mdc"));
+      process.exit(0);
+    }
+    
+    console.log(chalk.green(`✓ Found ${files.length} files to convert\n`));
+    
+    // Determine output directory
+    const outputDir = options.output || generateDirOutputPath(source, options.to as AgentId);
+    
+    console.log(chalk.cyan(`💾 Output: ${chalk.white(outputDir)}`));
+    console.log(chalk.cyan(`📊 Mode: ${chalk.white(options.dryRun ? "Dry Run" : "Live Conversion")}`));
+    console.log();
+    
+    // Confirm
+    if (!options.dryRun) {
+      console.log(chalk.yellow.bold("⚠️  This will modify files on your filesystem.\n"));
+      
+      // In a real implementation, we'd ask for confirmation here
+      // For now, we'll proceed with a warning
+    }
+    
+    // Convert files
+    const results = {
+      success: 0,
+      error: 0,
+      skipped: 0,
+      total: files.length,
+    };
+    
+    console.log(chalk.blue("🔄 Converting files...\n"));
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
+      const relativePath = relative(source, file);
+      
+      try {
+        // Read and convert
+        const content = readFileSync(file, "utf-8");
+        const parseResult = parseComponent(content, { sourceFile: file });
+        
+        if (!parseResult.success || !parseResult.spec) {
+          results.error++;
+          if (options.verbose) {
+            console.log(chalk.red(`  ✗ ${relativePath} - Parse failed`));
+          }
+          continue;
+        }
+        
+        const targetAgent = options.to as AgentId;
+        const renderResult = renderComponent(parseResult.spec, targetAgent, {
+          includeComments: true,
+          validateOutput: true,
+        });
+        
+        if (!renderResult.success || !renderResult.content) {
+          results.error++;
+          if (options.verbose) {
+            console.log(chalk.red(`  ✗ ${relativePath} - Render failed`));
+          }
+          continue;
+        }
+        
+        // Calculate output path
+        const targetPath = calculateDirTargetPath(file, source!, outputDir, targetAgent);
+        
+        if (!options.dryRun) {
+          // Backup if needed
+          if (options.backup && existsSync(targetPath)) {
+            copyFileSync(targetPath, `${targetPath}.backup.${Date.now()}`);
+          }
+          
+          // Ensure directory exists
+          mkdirSync(dirname(targetPath), { recursive: true });
+          
+          // Write file
+          writeFileSync(targetPath, renderResult.content, "utf-8");
+        }
+        
+        results.success++;
+        
+        if (options.verbose) {
+          const fidelity = renderResult.report?.fidelityScore || 0;
+          const color = fidelity >= 90 ? chalk.green : fidelity >= 75 ? chalk.yellow : chalk.red;
+          console.log(color(`  ✓ ${relativePath} (${fidelity}%)`));
+        }
+      } catch (e) {
+        results.error++;
+        if (options.verbose) {
+          console.log(chalk.red(`  ✗ ${relativePath} - ${e instanceof Error ? e.message : String(e)}`));
+        }
+      }
+      
+      // Progress bar
+      const percent = Math.floor(((i + 1) / files.length) * 100);
+      const bar = "█".repeat(Math.floor(percent / 5)) + "░".repeat(20 - Math.floor(percent / 5));
+      process.stdout.clearLine?.(0);
+      process.stdout.cursorTo?.(0);
+      process.stdout.write(chalk.gray(`[${bar}] ${percent}% (${i + 1}/${files.length})`));
+    }
+    
+    console.log();
+    console.log();
+    
+    // Summary
+    console.log(chalk.blue.bold("📊 Conversion Summary\n"));
+    console.log(`   Total files: ${chalk.white(results.total.toString())}`);
+    console.log(`   Successful: ${chalk.green(results.success.toString())}`);
+    console.log(`   Errors: ${results.error > 0 ? chalk.red(results.error.toString()) : chalk.gray("0")}`);
+    console.log(`   Skipped: ${chalk.yellow(results.skipped.toString())}`);
+    console.log();
+    
+    if (options.dryRun) {
+      console.log(chalk.blue("This was a dry run. No files were modified."));
+      console.log(chalk.gray("Run without --dry-run to execute the conversion.\n"));
+    } else {
+      console.log(chalk.green.bold("✅ Directory conversion complete!\n"));
+      console.log(chalk.blue("Next steps:"));
+      console.log(chalk.gray(`   • Review converted files in: ${outputDir}`));
+      console.log(chalk.gray(`   • Run 'cace validate' on key files`));
+      console.log(chalk.gray(`   • Test in your ${options.to} environment`));
+    }
+    
+    console.log();
+  });
+
+// ============================================================================
 // DOCTOR COMMAND - System check
 // ============================================================================
 
@@ -613,6 +836,103 @@ program
     console.log(chalk.gray(`   📖 Documentation: ${chalk.cyan("https://github.com/AIntelligentTech/cross-agent-compatibility-engine")}`));
     console.log();
   });
+
+// ============================================================================
+// Helper functions for convert-dir
+// ============================================================================
+
+function shouldIncludeFile(filePath: string, includePatterns?: string[], excludePatterns?: string[]): boolean {
+  const fileName = basename(filePath);
+  
+  // Check exclude patterns first
+  if (excludePatterns && excludePatterns.length > 0) {
+    for (const pattern of excludePatterns) {
+      if (fileName.includes(pattern)) {
+        return false;
+      }
+    }
+  }
+  
+  // Check include patterns
+  if (includePatterns && includePatterns.length > 0) {
+    for (const pattern of includePatterns) {
+      if (fileName.includes(pattern)) {
+        return true;
+      }
+    }
+    return false; // If include patterns specified but none match, exclude
+  }
+  
+  return true;
+}
+
+function generateDirOutputPath(source: string, targetAgent: AgentId): string {
+  const baseName = basename(source);
+  return join(dirname(source), `${baseName}.${targetAgent}`);
+}
+
+function calculateDirTargetPath(sourceFile: string, sourceDir: string, outputDir: string, targetAgent: AgentId): string {
+  const relativePath = relative(sourceDir, sourceFile);
+  const baseName = basename(relativePath, ".md");
+  
+  // Map to target agent structure
+  const agentInfo = AGENTS[targetAgent];
+  let targetSubdir = "";
+  
+  if (relativePath.includes("/skills/") || relativePath.includes("\\skills\\")) {
+    targetSubdir = join(agentInfo.configLocations.project, "skills", baseName);
+  } else if (relativePath.includes("/commands/") || relativePath.includes("\\commands\\")) {
+    targetSubdir = join(agentInfo.configLocations.project, "commands");
+  } else if (relativePath.includes("/rules/") || relativePath.includes("\\rules\\")) {
+    targetSubdir = join(agentInfo.configLocations.project, "rules");
+  } else {
+    targetSubdir = agentInfo.configLocations.project;
+  }
+  
+  // If converting to skill format, use SKILL.md
+  if (targetAgent === "claude" || targetAgent === "opencode" || targetAgent === "codex" || targetAgent === "gemini") {
+    if (relativePath.includes("/skills/")) {
+      return join(outputDir, targetSubdir, "SKILL.md");
+    }
+  }
+  
+  return join(outputDir, targetSubdir, `${baseName}.md`);
+}
+
+function detectAgentFromContents(dir: string): AgentId | undefined {
+  // Try to detect agent by looking at file contents
+  const checkDir = (path: string, depth = 0): AgentId | undefined => {
+    if (depth > 3) return undefined;
+    
+    try {
+      const entries = readdirSync(path);
+      
+      for (const entry of entries) {
+        const fullPath = join(path, entry);
+        const stat = statSync(fullPath);
+        
+        if (stat.isDirectory()) {
+          const result = checkDir(fullPath, depth + 1);
+          if (result) return result;
+        } else if (entry.endsWith(".md")) {
+          try {
+            const content = readFileSync(fullPath, "utf-8");
+            const detected = detectAgent(content, fullPath);
+            if (detected) return detected;
+          } catch (e) {
+            // Skip unreadable files
+          }
+        }
+      }
+    } catch (e) {
+      // Skip unreadable directories
+    }
+    
+    return undefined;
+  };
+  
+  return checkDir(dir);
+}
 
 // ============================================================================
 // Helper functions
