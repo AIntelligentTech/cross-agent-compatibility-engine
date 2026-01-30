@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-01-30
+
+### 🛠️ Fix YAML-frontmatter-first output (Windsurf loader compatibility)
+
+- **Move conversion provenance comments after YAML frontmatter** for Claude + Windsurf renderers.
+  - Prevents Windsurf workflows/tools failing to load when any content appears before the initial `---`.
+- **Update compatibility matrix** to document “frontmatter must be first meaningful content” loader constraint.
+
+---
+
 ## [2.5.0] - 2026-01-30
 
 ### 🎉 Major Release - Cursor Skills Support (2.4+) + Improved Cursor Output
@@ -28,8 +38,6 @@ This release updates Cursor support to reflect Cursor’s Agent Skills standard 
 - **Cursor parser + validator now support Skill.md** (Agent Skills format)
 - **Cursor version catalog updated**: Cursor current version set to **2.4** with Skill detection markers
 - **Doctor matrix updated** to reflect improved Claude → Cursor fidelity
-
----
 
 ## [2.4.0] - 2026-01-30
 

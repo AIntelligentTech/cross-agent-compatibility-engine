@@ -157,6 +157,11 @@ describe("ClaudeRenderer", () => {
 
       expect(result.success).toBe(true);
       expect(result.content).toContain("<!-- Converted from windsurf");
+      // Frontmatter must remain first meaningful content (no leading comments)
+      const firstNonEmpty = result.content
+        ?.split(/\r?\n/)
+        .find((l) => l.trim().length > 0);
+      expect(firstNonEmpty).toBe("---");
     });
 
     test("generates conversion report", () => {
@@ -232,6 +237,21 @@ describe("WindsurfRenderer", () => {
 
       expect(result.success).toBe(true);
       expect(result.content).toContain("This is the body content");
+    });
+
+    test("keeps YAML frontmatter first even with comments", () => {
+      const spec = createTestSpec({
+        sourceAgent: { id: "claude", detectedAt: new Date().toISOString() },
+      });
+      const result = renderer.render(spec, { includeComments: true });
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("<!-- Converted from claude");
+
+      const firstNonEmpty = result.content
+        ?.split(/\r?\n/)
+        .find((l) => l.trim().length > 0);
+      expect(firstNonEmpty).toBe("---");
     });
 
     test("generates conversion report", () => {

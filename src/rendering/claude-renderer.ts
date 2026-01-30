@@ -141,14 +141,15 @@ export class ClaudeRenderer extends BaseRenderer {
       body = body + "\n\n" + spec.agentOverrides.claude.bodySuffix;
     }
 
-    // Add conversion comment if requested
-    let content = "";
+    // Build output.
+    // IMPORTANT: YAML frontmatter must remain the first meaningful content in the file
+    // for strict loaders/parsers (and for consistency across agents).
+    let content = frontmatterYaml + "\n";
     if (options?.includeComments) {
       content += `<!-- Converted from ${spec.sourceAgent?.id ?? "unknown"} to Claude Code -->\n`;
       content += `<!-- Original: ${spec.metadata.sourceFile ?? "unknown"} -->\n\n`;
     }
-
-    content += frontmatterYaml + "\n" + body;
+    content += body;
 
     // Calculate fidelity score
     const fidelityScore = this.calculateFidelity(losses, warnings);
