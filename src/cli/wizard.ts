@@ -22,13 +22,14 @@ import { SUPPORTED_AGENTS, AGENTS } from "../core/constants.js";
 import { parseComponent, detectAgent } from "../parsing/parser-factory.js";
 import { renderComponent } from "../rendering/renderer-factory.js";
 import { validate } from "../validation/index.js";
+import ConfigurationAuditEngine, { AuditReportFormatter } from "../audit/audit-engine.js";
 
 // ============================================================================
 // Types and Interfaces
 // ============================================================================
 
 interface WizardOptions {
-  mode: "install" | "convert" | "migrate" | "sync";
+  mode: "install" | "convert" | "migrate" | "sync" | "audit";
   sourceAgents: AgentId[];
   targetAgents: AgentId[];
   sourceLevel: "user" | "project" | "both";
@@ -515,6 +516,7 @@ export async function startWizard(): Promise<void> {
     { value: "convert", label: "🔄 Convert Scaffolding - Convert entire directories between agents" },
     { value: "migrate", label: "📤 Migration - Migrate from one agent to another with validation" },
     { value: "sync", label: "🔄 Sync - Sync user-level and project-level configurations" },
+    { value: "audit", label: "🔍 Audit - Comprehensive configuration assessment & health check" },
   ];
   
   const selectedModes = await multiSelect(rl, "What would you like to do? (Select one)", modeOptions);
@@ -540,6 +542,9 @@ export async function startWizard(): Promise<void> {
       break;
     case "sync":
       await runSyncWizard(rl);
+      break;
+    case "audit":
+      await runAuditWizard(rl);
       break;
   }
   
@@ -1088,6 +1093,136 @@ async function runSyncWizard(rl: ReturnType<typeof createInterface>): Promise<vo
   }
   
   console.log(chalk.gray("\nSync wizard coming in v2.3.0!"));
+}
+
+// ============================================================================
+// Audit Wizard
+// ============================================================================
+
+async function runAuditWizard(rl: ReturnType<typeof createInterface>): Promise<void> {
+  console.log(chalk.cyan.bold(`
+╔══════════════════════════════════════════════════════════════╗
+║           🔍 Configuration Audit Wizard                      ║
+║     Comprehensive assessment of your agent configurations    ║
+╚══════════════════════════════════════════════════════════════╝
+  `));
+  
+  console.log(chalk.blue("📋 This wizard will perform a comprehensive audit of all your agent configurations.\n"));
+  console.log(chalk.gray("The audit will check for:\n"));
+  console.log(chalk.gray("  • Configuration validity against current agent standards"));
+  console.log(chalk.gray("  • Version currency (are you using the latest features?)"));
+  console.log(chalk.gray("  • Optimization opportunities"));
+  console.log(chalk.gray("  • Pruning recommendations (unused/duplicate files)"));
+  console.log(chalk.gray("  • Cross-agent synchronization status\n"));
+  
+  // Phase 1: Configure Audit
+  console.log(chalk.blue.bold("\n⚙️  Phase 1: Configure Audit\n"));
+  
+  const searchPathOptions = [
+    { value: "home", label: "🏠 Home directory (~/) - User-level configs", checked: true },
+    { value: "business", label: "💼 Business directory (~/business/) - Project configs", checked: true },
+    { value: "current", label: "📁 Current directory (./) - Local project", checked: false },
+  ];
+  
+  const selectedPaths = await multiSelect(rl, "Where should I search for configurations?", searchPathOptions);
+  
+  const searchPaths: string[] = [];
+  if (selectedPaths.includes("home")) searchPaths.push(homedir());
+  if (selectedPaths.includes("business")) searchPaths.push(join(homedir(), "business"));
+  if (selectedPaths.includes("current")) searchPaths.push(process.cwd());
+  
+  if (searchPaths.length === 0) {
+    console.log(chalk.yellow("⚠️  No search paths selected. Using home directory only."));
+    searchPaths.push(homedir());
+  }
+  
+  // Phase 2: Select Audit Checks
+  console.log(chalk.blue.bold("\n🔍 Phase 2: Select Audit Checks\n"));
+  
+  const checkOptions = [
+    { value: "validity", label: "✓ Validity Check - Are configs valid and error-free?", checked: true },
+    { value: "version", label: "📅 Version Currency - Are you using the latest features?", checked: true },
+    { value: "optimization", label: "⚡ Optimization - Can configs be improved?", checked: true },
+    { value: "pruning", label: "🗑️  Pruning - Unused or duplicate files", checked: true },
+    { value: "sync", label: "🔄 Synchronization - Cross-agent consistency", checked: true },
+  ];
+  
+  const selectedChecks = await multiSelect(rl, "Which checks would you like to run?", checkOptions);
+  
+  // Phase 3: Run Audit
+  console.log(chalk.blue.bold("\n🔍 Phase 3: Running Comprehensive Audit\n"));
+  console.log(chalk.gray("This may take a moment depending on the number of configurations...\n"));
+  
+  try {
+    const auditConfig = {
+      searchPaths,
+      agentTypes: SUPPORTED_AGENTS,
+      excludePatterns: ["node_modules", ".git", "dist", "build", ".backup"],
+      maxDepth: 5,
+      checkVersionCurrency: selectedChecks.includes("version"),
+      checkOptimization: selectedChecks.includes("optimization"),
+      checkPruning: selectedChecks.includes("pruning"),
+      checkSynchronization: selectedChecks.includes("sync"),
+    };
+    
+    const engine = new ConfigurationAuditEngine(auditConfig);
+    const result = await engine.audit();
+    
+    // Phase 4: Display Results
+    console.log(chalk.green.bold("\n✅ Audit Complete!\n"));
+    
+    // Print formatted report
+    const report = AuditReportFormatter.formatConsoleReport(result);
+    console.log(report);
+    
+    // Save reports
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const reportDir = join(homedir(), ".cace", "audit-reports");
+    
+    if (!existsSync(reportDir)) {
+      mkdirSync(reportDir, { recursive: true });
+    }
+    
+    const jsonPath = join(reportDir, `audit-${timestamp}.json`);
+    const mdPath = join(reportDir, `audit-${timestamp}.md`);
+    
+    writeFileSync(jsonPath, AuditReportFormatter.formatJsonReport(result));
+    writeFileSync(mdPath, AuditReportFormatter.formatMarkdownReport(result));
+    
+    console.log(chalk.blue("\n📄 Reports saved:"));
+    console.log(chalk.gray(`   JSON: ${jsonPath}`));
+    console.log(chalk.gray(`   Markdown: ${mdPath}`));
+    
+    // Phase 5: Recommendations
+    console.log(chalk.blue.bold("\n💡 Next Steps\n"));
+    
+    if (result.systemHealth.status === "critical" || result.systemHealth.status === "poor") {
+      console.log(chalk.red("🚨 Your configurations need immediate attention!"));
+      console.log(chalk.gray("   Consider running the conversion wizard to fix critical issues."));
+    } else if (result.systemHealth.status === "fair") {
+      console.log(chalk.yellow("⚠️  Your configurations are functional but could be improved."));
+      console.log(chalk.gray("   Review the optimization suggestions above."));
+    } else if (result.systemHealth.status === "good") {
+      console.log(chalk.green("✅ Your configurations are in good shape!"));
+      console.log(chalk.gray("   Consider periodic audits to maintain quality."));
+    } else {
+      console.log(chalk.green("🎉 Excellent! Your configurations are top-notch!"));
+    }
+    
+    // Offer to run conversion if there are issues
+    const criticalRecs = result.recommendations.filter(r => r.priority === "critical" || r.priority === "high");
+    if (criticalRecs.length > 0) {
+      console.log(chalk.blue("\n🔄 Would you like to run the conversion wizard to address these issues?"));
+      console.log(chalk.gray("   Run: cace wizard → convert\n"));
+    }
+    
+  } catch (e) {
+    console.log(chalk.red(`\n❌ Audit failed: ${e instanceof Error ? e.message : String(e)}`));
+    console.log(chalk.gray("\nThis might be due to:"));
+    console.log(chalk.gray("  • Permission issues accessing certain directories"));
+    console.log(chalk.gray("  • Corrupted configuration files"));
+    console.log(chalk.gray("  • Network issues checking latest versions"));
+  }
 }
 
 // ============================================================================

@@ -1,4 +1,4 @@
-# CACE (Cross-Agent Compatibility Engine) v2.2.0
+# CACE (Cross-Agent Compatibility Engine) v2.3.0
 
 [![CI](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/cace-cli.svg)](https://www.npmjs.com/package/cace-cli)
@@ -12,7 +12,7 @@ Convert and validate AI agent components between **6 major agents**: Claude Code
 
 ---
 
-## ✨ What's New in v2.2.0
+## ✨ What's New in v2.3.0
 
 ### 🧙 Multi-Select Wizard Mode (NEW!)
 The ultimate way to manage complex multi-agent operations with an intuitive arrow-key interface:
@@ -327,7 +327,7 @@ cace i               # Shortcut alias
 $ cace interactive
 
 ╔══════════════════════════════════════════════════════════════╗
-║                CACE - Interactive Mode v2.2.0                ║
+║                CACE - Interactive Mode v2.3.0                ║
 ║  Cross-Agent Compatibility Engine - 6 Agents + Wizard Mode   ║
 ╚══════════════════════════════════════════════════════════════╝
 
@@ -447,7 +447,7 @@ git push origin feature/my-feature
 - ✅ Rich visual outputs
 - ✅ Safety disclaimers and guidance
 
-### v2.2.0 (Planned)
+### v2.3.0 (Planned)
 - [ ] Plugin system for custom agents
 - [ ] Web interface for visual conversion
 - [ ] Batch operations with progress tracking
