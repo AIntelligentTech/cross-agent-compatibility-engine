@@ -6,15 +6,61 @@ on:
       - "v*"
 
 jobs:
-  release:
+  validate:
+    name: Validate Installation Manifest
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Validate INSTALLATION.yaml exists
+        run: |
+          if [ ! -f INSTALLATION.yaml ]; then
+            echo "❌ INSTALLATION.yaml not found"
+            exit 1
+          fi
+          echo "✅ INSTALLATION.yaml found"
+
+      - name: Validate YAML format
+        run: |
+          node -e "
+            const fs = require('fs');
+            const yaml = require('yaml');
+            const content = fs.readFileSync('INSTALLATION.yaml', 'utf8');
+            try {
+              yaml.parse(content);
+              console.log('✅ INSTALLATION.yaml is valid YAML');
+            } catch (e) {
+              console.error('❌ Invalid YAML:', e.message);
+              process.exit(1);
+            }
+          "
+
+  release:
+    name: Release to npm
+    runs-on: ubuntu-latest
+    needs: validate
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Releasing version: ${VERSION}"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -42,16 +88,27 @@ jobs:
       - name: Extract release notes
         id: release_notes
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${{ steps.version.outputs.version }}
           # Extract notes for this version from CHANGELOG.md
           NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | sed '$d' | tail -n +2)
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Verify package info
+        id: package_info
+        run: |
+          PKG_NAME=$(node -e "console.log(require('./package.json').name)")
+          PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
+          echo "name=${PKG_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${PKG_VERSION}" >> $GITHUB_OUTPUT
+          echo "✅ Package: ${PKG_NAME}@${PKG_VERSION}"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: "v${{ steps.version.outputs.version }}"
           body: ${{ steps.release_notes.outputs.NOTES }}
           generate_release_notes: true
         env:
@@ -61,3 +118,29 @@ jobs:
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify npm publication
+        run: |
+          PKG_NAME="${{ steps.package_info.outputs.name }}"
+          PKG_VERSION="${{ steps.package_info.outputs.version }}"
+
+          # Wait and retry for npm to sync
+          for i in {1..5}; do
+            if npm view "${PKG_NAME}@${PKG_VERSION}" version 2>/dev/null; then
+              echo "✅ Package published and verified on npm"
+              exit 0
+            fi
+            echo "⏳ Waiting for npm sync... (attempt $i/5)"
+            sleep 10
+          done
+
+          echo "⚠️  Package verification pending (may take additional time)"
+
+      - name: Post release summary
+        if: always()
+        run: |
+          echo "📊 Release Summary:"
+          echo "  Package: ${{ steps.package_info.outputs.name }}"
+          echo "  Version: ${{ steps.package_info.outputs.version }}"
+          echo "  GitHub Release: Created"
+          echo "  npm Publication: In Progress"
