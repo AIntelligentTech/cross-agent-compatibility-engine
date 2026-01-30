@@ -1,5 +1,12 @@
 /**
- * Renderer for Cursor commands
+ * Renderer for Cursor artifacts.
+ *
+ * Cursor supports BOTH:
+ * - Commands: `.cursor/commands/<name>.md` (manual, slash-command invoked)
+ * - Skills:   `.cursor/skills/<name>/SKILL.md` (agent-decided by default, can be forced manual via `disable-model-invocation`)
+ *
+ * Cursor also supports Claude-compat skill discovery from `.claude/skills/` (see Cursor docs),
+ * but CACE emits native Cursor locations by default.
  */
 
 import type {
@@ -8,6 +15,7 @@ import type {
   ConversionLoss,
   ConversionWarning,
 } from "../core/types.js";
+import { formatVersion } from "../core/types.js";
 import { BaseRenderer, type RenderOptions } from "./renderer-interface.js";
 
 export class CursorRenderer extends BaseRenderer {
@@ -25,10 +33,102 @@ export class CursorRenderer extends BaseRenderer {
     const preservedSemantics: string[] = [];
     const suggestions: string[] = [];
 
-    // Cursor commands are plain markdown with conventional structure
-    // No frontmatter required, but we can optionally include it
+    // Cursor skills are YAML-frontmatter + markdown body (Agent Skills standard)
+    if (spec.componentType === "skill") {
+      const frontmatter: Record<string, unknown> = {
+        name: spec.id,
+        description: spec.intent.summary,
+      };
 
-    // Check for losses - Cursor has limited features
+      // Activation mapping: Cursor skills are auto-applied by default.
+      // `disable-model-invocation: true` forces manual-only (similar to Cursor commands).
+      if (spec.activation.mode === "manual") {
+        frontmatter["disable-model-invocation"] = true;
+        preservedSemantics.push("Manual-only invocation (disable-model-invocation)");
+      } else {
+        preservedSemantics.push("Automatic/progressive skill invocation");
+      }
+
+      // Version if non-default
+      if (
+        spec.version.major !== 1 ||
+        spec.version.minor !== 0 ||
+        spec.version.patch !== 0
+      ) {
+        frontmatter["version"] = formatVersion(spec.version);
+      }
+
+      // Cursor Skills spec supports optional fields like `metadata`, but Cursor does not
+      // document enforcement for Claude-only fields such as `allowed-tools` or `context`.
+      if (spec.execution.context === "fork") {
+        losses.push({
+          category: "execution",
+          severity: "warning",
+          description: 'Claude "fork" context has no Cursor equivalent',
+          sourceField: "execution.context",
+        });
+      }
+      if (spec.execution.subAgent) {
+        losses.push({
+          category: "execution",
+          severity: "warning",
+          description: `Sub-agent "${spec.execution.subAgent}" is not supported in Cursor skills`,
+          sourceField: "execution.subAgent",
+        });
+      }
+      if (spec.execution.allowedTools && spec.execution.allowedTools.length > 0) {
+        losses.push({
+          category: "capability",
+          severity: "warning",
+          description:
+            "Tool restrictions cannot be enforced in Cursor skills (no documented equivalent)",
+          sourceField: "execution.allowedTools",
+        });
+      }
+
+      preservedSemantics.push("Skill instructions and workflow");
+      preservedSemantics.push("Skill name/description metadata");
+
+      let body = spec.body;
+      const versionAdaptation = this.adaptForVersion(body, options);
+      body = versionAdaptation.body;
+      if (versionAdaptation.adapted) {
+        preservedSemantics.push("Version-adapted content");
+      }
+      for (const w of versionAdaptation.warnings) {
+        warnings.push({
+          code: "VERSION_ADAPTATION",
+          message: w,
+          field: "body",
+        });
+      }
+
+      // Build output. For Skill.md, YAML frontmatter MUST be the first block.
+      let content = this.buildFrontmatter(frontmatter) + "\n";
+      if (options?.includeComments) {
+        content += `<!-- Converted from ${spec.sourceAgent?.id ?? "unknown"} to Cursor Skill -->\n`;
+        content += `<!-- Original: ${spec.metadata.sourceFile ?? "unknown"} -->\n\n`;
+      }
+      content += body.trim() + "\n";
+
+      const fidelityScore = this.calculateFidelity(losses, warnings);
+      const report: ConversionReport = {
+        ...this.createConversionReport(spec, "cursor", startTime),
+        preservedSemantics,
+        losses,
+        warnings,
+        suggestions,
+        fidelityScore,
+      };
+
+      const filename = this.getTargetFilename(spec);
+      return this.createSuccessResult(content, filename, report);
+    }
+
+    // Cursor commands are plain markdown with conventional structure
+    // No frontmatter required
+
+    // Check for losses - Cursor commands have limited features vs Claude skills
     if (spec.sourceAgent?.id === "claude") {
       // Many Claude features don't map
       if (spec.activation.mode !== "manual") {
@@ -193,15 +293,17 @@ export class CursorRenderer extends BaseRenderer {
   }
 
   getTargetFilename(spec: ComponentSpec): string {
+    if (spec.componentType === "skill") {
+      return `${spec.id}/SKILL.md`;
+    }
     return `${spec.id}.md`;
   }
 
   getTargetDirectory(_spec: ComponentSpec): string {
+    if (_spec.componentType === "skill") {
+      return ".cursor/skills";
+    }
     return ".cursor/commands";
-  }
-
-  protected override mapComponentType(): "command" {
-    return "command";
   }
 
   private formatTitle(id: string): string {
@@ -258,5 +360,33 @@ export class CursorRenderer extends BaseRenderer {
     }
 
     return Math.max(0, score);
+  }
+
+  private buildFrontmatter(data: Record<string, unknown>): string {
+    const lines: string[] = ["---"];
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value === undefined || value === null) continue;
+
+      if (Array.isArray(value)) {
+        lines.push(`${key}:`);
+        for (const item of value) {
+          lines.push(`  - ${item}`);
+        }
+      } else if (typeof value === "boolean") {
+        lines.push(`${key}: ${value}`);
+      } else if (typeof value === "string") {
+        if (value.includes(":") || value.includes("#") || value.includes("\n")) {
+          lines.push(`${key}: "${value.replace(/"/g, '\\"')}"`);
+        } else {
+          lines.push(`${key}: ${value}`);
+        }
+      } else {
+        lines.push(`${key}: ${JSON.stringify(value)}`);
+      }
+    }
+
+    lines.push("---");
+    return lines.join("\n");
   }
 }

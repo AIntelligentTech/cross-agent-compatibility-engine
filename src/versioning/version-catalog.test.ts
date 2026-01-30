@@ -64,7 +64,7 @@ describe("Version Catalog", () => {
       const current = getCurrentVersion("cursor");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("2.3");
+      expect(current?.version).toBe("2.4");
     });
   });
 

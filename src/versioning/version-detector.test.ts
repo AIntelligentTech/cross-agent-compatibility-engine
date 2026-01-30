@@ -135,7 +135,7 @@ Rule content.
 `;
       const result = detectCursorVersion(content);
       // globs is a 1.7+ feature, so version should be 1.7 or later
-      expect(["1.7", "2.2", "2.3"]).toContain(result.version);
+      expect(["1.7", "2.2", "2.3", "2.4"]).toContain(result.version);
     });
   });
 

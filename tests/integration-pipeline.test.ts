@@ -58,7 +58,8 @@ It performs simple operations.
         
         expect(renderResult.success).toBe(true);
         expect(renderResult.content).toBeDefined();
-        expect(renderResult.content).toContain("Test Skill"); // Renderer converts to title case
+        expect(renderResult.content).toContain("name: test-skill");
+        expect(renderResult.content).toContain("description: A test skill for integration");
       }
     });
 
@@ -93,9 +94,9 @@ DO NOT modify any files.
         
         expect(renderResult.success).toBe(true);
         
-        // Validate the output
+        // Validate the output (Cursor skill)
         if (renderResult.content) {
-          const validation = validate(renderResult.content, "cursor", "rule");
+          const validation = validate(renderResult.content, "cursor", "skill");
           expect(validation.valid).toBe(true);
         }
       }

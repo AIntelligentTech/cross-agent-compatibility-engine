@@ -7,6 +7,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-01-30
+
+### 🎉 Major Release - Cursor Skills Support (2.4+) + Improved Cursor Output
+
+This release updates Cursor support to reflect Cursor’s Agent Skills standard (v2.4+) and Claude compatibility directories, and fixes Cursor output paths for directory conversion.
+
+### ✨ New Features
+
+- **Cursor Skills rendering**: Claude skills now convert to native Cursor skills at:
+  - `.cursor/skills/<name>/SKILL.md`
+- **Cursor dual-output support (directory conversion)**: For `--strategy dual-output` and Claude → Cursor,
+  CACE can emit both:
+  - `.cursor/skills/<name>/SKILL.md` (skill, auto/progressive)
+  - `.cursor/commands/<name>.md` (explicit manual command)
+
+### 🔧 Improvements
+
+- **Correct Cursor output paths in `convert-dir`** (no more nested `.cursor/commands/<skill>/SKILL.md` artifacts)
+- **Cursor parser + validator now support Skill.md** (Agent Skills format)
+- **Cursor version catalog updated**: Cursor current version set to **2.4** with Skill detection markers
+- **Doctor matrix updated** to reflect improved Claude → Cursor fidelity
+
+---
+
 ## [2.4.0] - 2026-01-30
 
 ### 🎉 Major Release - Dual-Output Strategy & Windsurf Parity

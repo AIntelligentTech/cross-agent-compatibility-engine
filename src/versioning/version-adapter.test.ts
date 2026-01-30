@@ -38,7 +38,7 @@ describe("Version Adapter", () => {
     });
 
     test("returns current Cursor version", () => {
-      expect(getDefaultTargetVersion("cursor")).toBe("2.3");
+      expect(getDefaultTargetVersion("cursor")).toBe("2.4");
     });
 
     test("returns fallback for unknown agent", () => {

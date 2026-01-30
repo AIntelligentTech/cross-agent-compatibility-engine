@@ -66,7 +66,7 @@ const program = new Command();
 program
   .name("cace")
   .description("Cross-Agent Compatibility Engine - Convert and validate AI agent components")
-  .version("2.3.0");
+  .version("2.5.0");
 
 // ============================================================================
 // WIZARD MODE (Multi-Select Installation Wizard)
@@ -744,41 +744,55 @@ program
           continue;
         }
         
-        // Handle dual-output strategy for Claude → Windsurf
-        if (strategy === "dual-output" && fromAgent === "claude" && targetAgent === "windsurf") {
-          // Dual-output: Generate both Workflow (manual) and Skill (auto-invocation)
-          
-          // 1. Write Workflow to .windsurf/workflows/<skill>.md
-          const workflowPath = calculateDirTargetPath(file, source!, outputDir, targetAgent);
-          
+        // Handle dual-output strategy for Claude → Windsurf / Cursor
+        if (strategy === "dual-output" && fromAgent === "claude" && (targetAgent === "windsurf" || targetAgent === "cursor")) {
+          const targets = calculateDirTargetPaths(file, source!, outputDir, targetAgent);
+          const primaryPath = targets.primary;
+          const secondaryPath = targets.secondary;
+
+          // Write primary output (workflow for windsurf, skill for cursor)
           if (!options.dryRun) {
-            mkdirSync(dirname(workflowPath), { recursive: true });
-            writeFileSync(workflowPath, renderResult.content, "utf-8");
+            mkdirSync(dirname(primaryPath), { recursive: true });
+            writeFileSync(primaryPath, renderResult.content, "utf-8");
           }
-          
-          // 2. Write Skill to .windsurf/skills/<skill>/SKILL.md (preserves auto-invocation)
-          const skillDir = join(outputDir, ".windsurf", "skills", parseResult.spec!.id);
-          const skillPath = join(skillDir, "SKILL.md");
-          
-          // Re-render for skill format (use Claude renderer to preserve structure)
-          const skillRenderResult = renderComponent(parseResult.spec!, "claude", {
-            includeComments: true,
-            validateOutput: true,
-          });
-          
-          if (skillRenderResult.success && skillRenderResult.content) {
-            if (!options.dryRun) {
-              mkdirSync(skillDir, { recursive: true });
-              writeFileSync(skillPath, skillRenderResult.content, "utf-8");
+
+          // Write secondary output if available
+          if (secondaryPath) {
+            if (targetAgent === "windsurf") {
+              // For Windsurf, secondary is a Skill for auto-invocation parity. Use Claude renderer (compatible Skill.md frontmatter).
+              const skillRenderResult = renderComponent(parseResult.spec!, "claude", {
+                includeComments: true,
+                validateOutput: true,
+              });
+              if (skillRenderResult.success && skillRenderResult.content && !options.dryRun) {
+                mkdirSync(dirname(secondaryPath), { recursive: true });
+                writeFileSync(secondaryPath, skillRenderResult.content, "utf-8");
+              }
+            } else if (targetAgent === "cursor") {
+              // For Cursor, secondary is a Command (.cursor/commands/<name>.md) for explicit manual invocation.
+              const commandSpec: ComponentSpec = {
+                ...parseResult.spec!,
+                componentType: "command",
+                activation: { ...parseResult.spec!.activation, mode: "manual" },
+              };
+              const commandRenderResult = renderComponent(commandSpec, "cursor", {
+                includeComments: true,
+                validateOutput: true,
+              });
+              if (commandRenderResult.success && commandRenderResult.content && !options.dryRun) {
+                mkdirSync(dirname(secondaryPath), { recursive: true });
+                writeFileSync(secondaryPath, commandRenderResult.content, "utf-8");
+              }
             }
           }
-          
+
           results.success++;
-          
+
           if (options.verbose) {
             const fidelity = renderResult.report?.fidelityScore || 0;
             const color = fidelity >= 90 ? chalk.green : fidelity >= 75 ? chalk.yellow : chalk.red;
-            console.log(color(`  ✓ ${relativePath} → workflow + skill (${fidelity}%)`));
+            const label = targetAgent === "windsurf" ? "workflow + skill" : "skill + command";
+            console.log(color(`  ✓ ${relativePath} → ${label} (${fidelity}%)`));
           }
         } else {
           // Standard single-output conversion
@@ -932,7 +946,7 @@ program
     
     const matrix = [
       ["From→To", "Claude", "Cursor", "Windsurf", "OpenCode", "Codex", "Gemini"],
-      ["Claude", "—", "92%", "87%", "98%", "92%", "88%"],
+      ["Claude", "—", "96%", "87%", "98%", "92%", "88%"],
       ["Cursor", "90%", "—", "82%", "88%", "85%", "83%"],
       ["Windsurf", "85%", "82%", "—", "90%", "88%", "86%"],
       ["OpenCode", "95%", "88%", "90%", "—", "90%", "88%"],
@@ -960,6 +974,7 @@ program
     console.log();
     console.log(chalk.gray("   Legend: " + chalk.green("≥90% Excellent") + "  " + chalk.yellow("≥80% Good") + "  " + chalk.red("<80% Review needed")));
     console.log(chalk.gray("   * OpenCode natively reads Claude files"));
+    console.log(chalk.gray("   * Cursor 2.4+ natively reads Agent Skills, including .claude/skills for compatibility"));
 
     // Recommendations
     console.log();
@@ -1068,6 +1083,13 @@ function calculateDirTargetPaths(sourceFile: string, sourceDir: string, outputDi
         primary: join(outputDir, ".windsurf", "workflows", `${skillName}.md`),
         secondary: join(outputDir, ".windsurf", "skills", skillName, "SKILL.md"),
       };
+    } else if (targetAgent === "cursor") {
+      // Cursor: Skills are native in v2.4+ (.cursor/skills/<name>/SKILL.md).
+      // Secondary (optional) command output can preserve explicit /command workflows.
+      return {
+        primary: join(outputDir, ".cursor", "skills", skillName, "SKILL.md"),
+        secondary: join(outputDir, ".cursor", "commands", `${skillName}.md`),
+      };
     } else if (targetAgent === "claude" || targetAgent === "opencode" || targetAgent === "codex") {
       targetSubdir = join(projectPath, skillName);
       return { primary: join(outputDir, targetSubdir, "SKILL.md") };
@@ -1075,9 +1097,18 @@ function calculateDirTargetPaths(sourceFile: string, sourceDir: string, outputDi
       targetSubdir = join(projectPath, skillName);
     }
   } else if (relativePath.includes("/commands/") || relativePath.includes("\\commands\\")) {
-    targetSubdir = projectPath;
+    // Some agents use a base config directory (e.g. .cursor) with a commands subdir.
+    if (targetAgent === "cursor") {
+      targetSubdir = join(projectPath, "commands");
+    } else {
+      targetSubdir = projectPath;
+    }
   } else if (relativePath.includes("/rules/") || relativePath.includes("\\rules\\")) {
-    targetSubdir = projectPath;
+    if (targetAgent === "cursor") {
+      targetSubdir = join(projectPath, "rules");
+    } else {
+      targetSubdir = projectPath;
+    }
   } else {
     targetSubdir = projectPath;
   }
@@ -1221,10 +1252,12 @@ function getScaffoldPaths(agent: AgentId, basePath: string, isUserLevel: boolean
         paths.push(join(basePath, ".cursor"));
         paths.push(join(basePath, ".cursor", "rules"));
         paths.push(join(basePath, ".cursor", "commands"));
+        paths.push(join(basePath, ".cursor", "skills"));
       } else {
         paths.push(".cursor");
         paths.push(".cursor/rules");
         paths.push(".cursor/commands");
+        paths.push(".cursor/skills");
       }
       break;
     case "windsurf":
@@ -1277,6 +1310,9 @@ function generateExampleComponent(
       if (type === "rule") {
         path = join(basePath, ".cursor", "rules", `${name}.mdc`);
         content = `---\ndescription: ${name} rule\nglobs: ["**/*.ts"]\nalwaysApply: false\n---\n\nAlways follow this rule when working with relevant files.\n`;
+      } else if (type === "skill") {
+        path = join(basePath, ".cursor", "skills", name, "SKILL.md");
+        content = `---\nname: ${name}\ndescription: Example ${name} skill\n---\n\n# ${name}\n\nAdd your skill instructions here.\n`;
       } else if (type === "command") {
         path = join(basePath, ".cursor", "commands", `${name}.md`);
         content = `Run the ${name} process.\n\nAdd detailed instructions here.\n`;

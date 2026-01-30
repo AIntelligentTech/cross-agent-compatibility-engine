@@ -1,8 +1,11 @@
 /**
- * Parser for Cursor commands
+ * Parser for Cursor commands + skills
  *
  * Cursor commands are plain Markdown files with no required frontmatter.
  * Convention uses # Title, ## Objective, ## Requirements, ## Output sections.
+ *
+ * Cursor skills follow the Agent Skills standard:
+ * `.cursor/skills/<skill-name>/SKILL.md` with YAML frontmatter (`name`, `description`, etc.).
  */
 
 import matter from "gray-matter";
@@ -34,6 +37,22 @@ export class CursorParser extends BaseParser {
       }
       if (filename.includes(".cursor/rules/")) {
         return true;
+      }
+      if (filename.includes(".cursor/skills/") && filename.endsWith("/SKILL.md")) {
+        return true;
+      }
+    }
+
+    // If it looks like an Agent Skills file (YAML frontmatter with required keys)
+    if (content.startsWith("---")) {
+      try {
+        const parsed = matter(content);
+        const data = parsed.data as Record<string, unknown>;
+        if (typeof data.name === "string" && typeof data.description === "string") {
+          return true;
+        }
+      } catch {
+        // ignore
       }
     }
 
@@ -84,7 +103,7 @@ export class CursorParser extends BaseParser {
     | ReturnType<typeof this.createErrorResult> {
     const warnings: string[] = [];
 
-    // Try to parse frontmatter (optional for Cursor)
+    // Try to parse frontmatter
     let fm: CursorFrontmatter = {};
     let body = content;
 
@@ -97,6 +116,62 @@ export class CursorParser extends BaseParser {
     } catch {
       // No frontmatter, use full content as body
       body = content.trim();
+    }
+
+    // Detect Skill.md style (Agent Skills standard)
+    const isSkillFile =
+      options?.sourceFile?.includes(".cursor/skills/") ||
+      options?.sourceFile?.endsWith("/SKILL.md") ||
+      (content.startsWith("---") &&
+        typeof (fm as unknown as Record<string, unknown>)["name"] === "string" &&
+        typeof (fm as unknown as Record<string, unknown>)["description"] === "string");
+
+    if (isSkillFile) {
+      const data = fm as unknown as Record<string, unknown>;
+      const name = (data["name"] as string | undefined) ?? "unknown-skill";
+      const description = (data["description"] as string | undefined) ?? "Unknown skill";
+      const disableModelInvocation = data["disable-model-invocation"] === true;
+
+      const id =
+        this.extractSkillIdFromFilename(options?.sourceFile) ??
+        name;
+
+      const spec: ComponentSpec = {
+        id,
+        version: { major: 1, minor: 0, patch: 0 },
+        sourceAgent: {
+          id: "cursor",
+          detectedAt: new Date().toISOString(),
+        },
+        componentType: "skill",
+        category: this.inferCategory(description, body),
+        intent: {
+          summary: description,
+          purpose: description,
+          whenToUse: description,
+        },
+        activation: {
+          mode: disableModelInvocation ? "manual" : "auto",
+          safetyLevel: this.inferSafetyLevel(body, createDefaultCapabilities()),
+          requiresConfirmation: true,
+        },
+        invocation: {
+          slashCommand: id,
+          userInvocable: true,
+        },
+        execution: {
+          context: "main",
+        },
+        body,
+        capabilities: createDefaultCapabilities(),
+        metadata: {
+          sourceFile: options?.sourceFile,
+          originalFormat: "cursor-skill",
+          updatedAt: new Date().toISOString(),
+        },
+      };
+
+      return this.createSuccessResult(spec, warnings);
     }
 
     // Extract title from first # heading if not in frontmatter
@@ -176,6 +251,12 @@ export class CursorParser extends BaseParser {
     if (match?.[1]) return match[1];
 
     return undefined;
+  }
+
+  private extractSkillIdFromFilename(filename?: string): string | undefined {
+    if (!filename) return undefined;
+    const match = filename.match(/\.cursor\/skills\/([^/]+)\/SKILL\.md$/);
+    return match?.[1];
   }
 
   private slugify(text: string): string {

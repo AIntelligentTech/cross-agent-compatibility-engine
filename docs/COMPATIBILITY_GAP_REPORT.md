@@ -1,6 +1,6 @@
 # Cross-Agent Compatibility Gap Report
 
-**Document Version:** 2.3.0  
+**Document Version:** 2.5.0  
 **Report Date:** 2026-01-30  
 **Canonical Standard:** Claude Code  
 **Synchronization Status:** 52 skills synced to each agent
@@ -16,7 +16,7 @@ This report provides a comprehensive analysis of conversion fidelity and feature
 | Target Agent | Fidelity Score | Status | Key Losses |
 |--------------|----------------|--------|------------|
 | **OpenCode** | **98%** | Excellent | Minor metadata differences |
-| **Cursor** | **92%** | Good | `context: fork`, `agent:` delegation |
+| **Cursor** | **96%** | Excellent | `context: fork`, tool restriction enforcement |
 | **Codex** | **92%** | Good | `context: fork`, no native skills |
 | **Gemini** | **88%** | Moderate | All frontmatter, skills structure |
 | **Windsurf** | **87%** | Moderate | Context isolation, tool restrictions |
@@ -39,8 +39,8 @@ This report provides a comprehensive analysis of conversion fidelity and feature
 
 | Feature | Claude | Cursor | Windsurf | Gemini | Codex | OpenCode |
 |---------|--------|--------|----------|--------|-------|----------|
-| **YAML Frontmatter** | ✅ Full | ⚠️ Partial | ⚠️ Partial | ❌ No | ✅ Full | ✅ Full |
-| **Skills System** | ✅ Native | ⚠️ Rules | ✅ Native | ❌ No | ✅ Native | ✅ Native |
+| **YAML Frontmatter** | ✅ Full | ✅ Full (Skills) | ⚠️ Partial | ❌ No | ✅ Full | ✅ Full |
+| **Skills System** | ✅ Native | ✅ Native (Agent Skills) | ✅ Native | ❌ No | ✅ Native | ✅ Native |
 | **Commands** | ✅ Native | ✅ Native | ⚠️ Workflows | ❌ No | ✅ Native | ✅ Native |
 | **Context Forking** | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ❌ No |
 | **Agent Delegation** | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ⚠️ Partial |
@@ -48,26 +48,26 @@ This report provides a comprehensive analysis of conversion fidelity and feature
 | **MCP Servers** | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes | ❌ No |
 | **Code Execution** | ❌ No | ❌ No | ❌ No | ✅ Yes | ⚠️ Limited | ⚠️ Limited |
 | **Glob Patterns** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
-| **Auto-Invocation** | ✅ Yes | ❌ No | ✅ Yes | ❌ No | ❌ No | ✅ Yes |
-| **Progressive Disclosure** | ✅ Yes | ❌ No | ✅ Yes | ❌ No | ❌ No | ✅ Yes |
+| **Auto-Invocation** | ✅ Yes | ✅ Yes (Skills) | ✅ Yes | ❌ No | ❌ No | ✅ Yes |
+| **Progressive Disclosure** | ✅ Yes | ✅ Yes (Skills) | ✅ Yes | ❌ No | ❌ No | ✅ Yes |
 | **File Imports** | ✅ `@file` | ❌ No | ❌ No | ✅ `@import` | ❌ No | ✅ `instructions` |
-| **Hooks/Lifecycle** | ✅ Full | ⚠️ Limited | ⚠️ Limited | ❌ No | ❌ No | ✅ Plugins |
+| **Hooks/Lifecycle** | ✅ Full | ✅ Hooks (+ Claude compatibility) | ⚠️ Limited | ❌ No | ❌ No | ✅ Plugins |
 
 ### Skill Feature Support Matrix
 
 | Skill Feature | Claude | Cursor | Windsurf | Gemini | Codex | OpenCode |
 |---------------|--------|--------|----------|--------|-------|----------|
-| `name` field | ✅ Yes | ❌ No | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
+| `name` field | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
 | `description` field | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
 | `argument-hint` | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| `disable-model-invocation` | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ❌ No |
+| `disable-model-invocation` | ✅ Yes | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No |
 | `user-invocable` | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes |
 | `context: fork` | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ⚠️ `subtask` |
 | `agent:` subagent | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes |
 | `allowed-tools` | ✅ Yes | ❌ No | ❌ No | ❌ No | ⚠️ MCP | ⚠️ Patterns |
 | `model` preference | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| Supporting files | ✅ Yes | ❌ No | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
-| Slash invocation | ✅ `/name` | ⚠️ Diff | ⚠️ Diff | ❌ No | ❌ No | ⚠️ Diff |
+| Supporting files | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes |
+| Slash invocation | ✅ `/name` | ✅ `/name` (Skills + Commands) | ⚠️ Diff | ❌ No | ❌ No | ⚠️ Diff |
 
 ---
 
@@ -103,7 +103,7 @@ context: fork
 
 ---
 
-### 2. Claude → Cursor (92% Fidelity)
+### 2. Claude → Cursor (96% Fidelity)
 
 **Strengths:**
 - Rules system maps well to Claude's progressive disclosure

@@ -1,15 +1,18 @@
 /**
  * Cursor IDE validator with versioned support
- * Validates .mdc rules and .md commands
+ * Validates:
+ * - .mdc rules
+ * - .md commands
+ * - SKILL.md skills (Agent Skills standard, Cursor 2.4+)
  */
 
 import matter from 'gray-matter';
 import { BaseValidator, type ValidationResult, type ValidationIssue, type ValidatorOptions } from '../validator-framework.js';
 import type { ComponentType } from '../../core/types.js';
 
-// Version 0.46+ - March 2025 - .mdc format introduced, .cursorrules deprecated
-// Version 0.40+ - 2025 - Initial rules system
-const CURSOR_VERSIONS = ['0.40.0', '0.45.0', '0.46.0'];
+// Cursor has historically had multiple versioning eras (0.x rules era, 1.x commands/rules,
+// 2.x agent-era). We treat these as a single ordered list for validation defaults.
+const CURSOR_VERSIONS = ['0.40.0', '0.45.0', '0.46.0', '1.6.0', '1.7.0', '2.4.0'];
 
 interface CursorFrontmatter {
   description?: string;
@@ -18,10 +21,20 @@ interface CursorFrontmatter {
   // Legacy .cursorrules didn't use frontmatter
 }
 
+interface CursorSkillFrontmatter {
+  name?: string;
+  description?: string;
+  license?: string;
+  compatibility?: string;
+  metadata?: Record<string, unknown>;
+  'disable-model-invocation'?: boolean;
+  version?: string;
+}
+
 export class CursorValidator extends BaseValidator {
   readonly agentId = 'cursor' as const;
   readonly supportedVersions = CURSOR_VERSIONS;
-  readonly componentTypes: ComponentType[] = ['rule', 'command'];
+  readonly componentTypes: ComponentType[] = ['rule', 'command', 'skill'];
 
   validate(
     content: string,
@@ -64,6 +77,9 @@ export class CursorValidator extends BaseValidator {
           break;
         case 'command':
           this.validateCommand(fm, body, version, issues, warnings, info, options);
+          break;
+        case 'skill':
+          this.validateSkill(parsed.data as CursorSkillFrontmatter, body, version, issues, warnings, info);
           break;
         default:
           issues.push(
@@ -288,6 +304,71 @@ export class CursorValidator extends BaseValidator {
           `Command references ${mentions.length} file/agent mentions`,
           'info'
         )
+      );
+    }
+  }
+
+  private validateSkill(
+    fm: CursorSkillFrontmatter,
+    body: string,
+    _version: string,
+    issues: ValidationIssue[],
+    warnings: ValidationIssue[],
+    info: ValidationIssue[],
+  ): void {
+    // Cursor skills follow the Agent Skills standard:
+    // required: name, description
+    if (!fm.name || typeof fm.name !== 'string') {
+      issues.push(
+        this.createIssue(
+          'MISSING_NAME',
+          'Skills must have a "name" field in YAML frontmatter',
+          'error',
+          'name',
+          'Add ---\\nname: my-skill\\ndescription: ...\\n--- at the top',
+        ),
+      );
+    }
+
+    if (!fm.description || typeof fm.description !== 'string') {
+      issues.push(
+        this.createIssue(
+          'MISSING_DESCRIPTION',
+          'Skills must have a "description" field in YAML frontmatter',
+          'error',
+          'description',
+          'Add a short description explaining when to use this skill',
+        ),
+      );
+    }
+
+    if (fm['disable-model-invocation'] !== undefined && typeof fm['disable-model-invocation'] !== 'boolean') {
+      issues.push(
+        this.createIssue(
+          'INVALID_DISABLE_MODEL_INVOCATION',
+          '"disable-model-invocation" must be a boolean',
+          'error',
+          'disable-model-invocation',
+        ),
+      );
+    } else if (fm['disable-model-invocation'] === true) {
+      info.push(
+        this.createIssue(
+          'MANUAL_ONLY',
+          'Skill is manual-only (disable-model-invocation: true)',
+          'info',
+          'disable-model-invocation',
+        ),
+      );
+    }
+
+    if (body.length < 50) {
+      warnings.push(
+        this.createIssue(
+          'SHORT_BODY',
+          'Skill body is very short. Consider adding clearer instructions and steps.',
+          'warning',
+        ),
       );
     }
   }

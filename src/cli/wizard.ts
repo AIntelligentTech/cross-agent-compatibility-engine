@@ -979,7 +979,7 @@ function calculateTargetPath(component: ComponentInfo, targetAgent: AgentId, tar
   const typeMap: Record<AgentId, Record<ComponentType, string>> = {
     claude: { skill: "skills", command: "commands", rule: "rules", hook: "hooks", memory: "memory", agent: "agents", config: "config", workflow: "skills" },
     opencode: { skill: "skills", command: "commands", rule: "rules", hook: "skills", memory: "memory", agent: "agents", config: "config", workflow: "skills" },
-    cursor: { skill: "commands", command: "commands", rule: "rules", hook: "commands", memory: "memory", agent: "commands", config: "config", workflow: "commands" },
+    cursor: { skill: "skills", command: "commands", rule: "rules", hook: "commands", memory: "memory", agent: "commands", config: "config", workflow: "commands" },
     windsurf: { skill: "skills", command: "workflows", rule: "rules", hook: "skills", memory: "memory", agent: "skills", config: "config", workflow: "workflows" },
     codex: { skill: "skills", command: "commands", rule: "rules", hook: "skills", memory: "memory", agent: "skills", config: "config", workflow: "skills" },
     gemini: { skill: "skills", command: "commands", rule: "skills", hook: "skills", memory: "memory", agent: "skills", config: "config", workflow: "skills" },
@@ -994,7 +994,15 @@ function calculateTargetPath(component: ComponentInfo, targetAgent: AgentId, tar
     return join(configPath, `${component.name}.md`);
   }
   
-  if (component.type === "skill" && (targetAgent === "claude" || targetAgent === "opencode" || targetAgent === "codex" || targetAgent === "gemini")) {
+  if (
+    component.type === "skill" &&
+    (targetAgent === "claude" ||
+      targetAgent === "opencode" ||
+      targetAgent === "codex" ||
+      targetAgent === "gemini" ||
+      targetAgent === "cursor" ||
+      targetAgent === "windsurf")
+  ) {
     return join(configPath, targetType, component.name, "SKILL.md");
   }
   

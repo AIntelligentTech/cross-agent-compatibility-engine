@@ -1,6 +1,6 @@
 # Agent Parity Knowledge
 
-**Document Version:** 1.0.0  
+**Document Version:** 1.1.0  
 **Created:** 2026-01-30  
 **Purpose:** Comprehensive analysis of conversion parity issues across AI coding agents
 
@@ -13,7 +13,7 @@ This document captures research findings on conversion parity gaps between Claud
 | Source → Target | Fidelity | Critical Gaps | Strategy |
 |-----------------|----------|---------------|----------|
 | Claude → Windsurf | 87% | Context isolation, tool restrictions | Dual-output |
-| Claude → Cursor | 92% | Context fork, agent delegation | Document loss |
+| Claude → Cursor | 96% | Context fork, tool restriction enforcement | Prefer Skills (+ optional Commands) |
 | Claude → OpenCode | 98% | Minor metadata | Native support |
 | Claude → Codex | 92% | Context fork, no native skills | MCP mapping |
 | Claude → Gemini | 88% | YAML frontmatter, skill structure | Flatten to prose |
@@ -163,7 +163,7 @@ Explore the codebase...
 
 ---
 
-## 3. Cursor .mdc alwaysApply vs Claude Hooks
+## 3. Cursor Hooks + Skills vs Claude Hooks + Skills
 
 ### Claude Hooks System
 
@@ -189,7 +189,18 @@ This skill runs linting checks before any Write tool use.
 - `SessionEnd` - Session ends
 - `Stop` / `SubagentStop` - Execution stops
 
-### Cursor .mdc Rules
+### Cursor Hooks (and Claude compatibility)
+
+Cursor supports an event-driven hooks system and can load **Claude Code hooks** for compatibility.
+
+- **Native Cursor hooks**: `.cursor/hooks.json`
+- **Claude compatibility hooks** (if enabled): `.claude/settings.json` / `.claude/settings.local.json` / `~/.claude/settings.json`
+
+Cursor maps Claude hook event names to Cursor equivalents and supports **exit code 2 blocking**.
+
+This means that **Claude hooks → Cursor hooks is no longer “documentation-only”**; a large subset is directly portable.
+
+### Cursor .mdc Rules (still useful)
 
 Cursor uses `.mdc` files with `alwaysApply` for rule activation:
 
@@ -212,33 +223,43 @@ Follow these rules when editing TypeScript files:
 - `alwaysApply: true` - Applied to every AI interaction (global)
 - `alwaysApply: false` - Model decides when to apply
 
-### Parity Analysis
+### Parity Analysis (Hooks)
 
-| Feature | Claude Hooks | Cursor .mdc |
+| Feature | Claude Hooks | Cursor Hooks |
 |---------|--------------|-------------|
-| Event triggers | ✅ Rich events | ❌ No events |
-| Pre-execution | ✅ `PreToolUse` | ❌ No equivalent |
-| Post-execution | ✅ `PostToolUse` | ❌ No equivalent |
-| Pattern matching | ✅ Complex matchers | ✅ `globs` only |
-| Command execution | ✅ Shell commands | ❌ No execution |
-| Conditional | ✅ Event-based | ⚠️ `alwaysApply` boolean |
+| Event triggers | ✅ Rich events | ✅ Rich events |
+| Pre-execution | ✅ `PreToolUse` | ✅ `preToolUse` |
+| Post-execution | ✅ `PostToolUse` | ✅ `postToolUse` |
+| Pattern matching | ✅ Matchers | ✅ Matchers (mapped) |
+| Command execution | ✅ Shell commands | ✅ Shell commands |
+| Blocking | ✅ exit code 2 | ✅ exit code 2 |
 
 ### Key Differences
 
-1. **Claude hooks can execute commands** - PreToolUse can run linting, tests, etc.
-2. **Cursor rules are passive** - Only provide context/instructions
-3. **Event granularity** - Claude has 10+ events vs Cursor's binary alwaysApply
+1. **Tool mapping** - Some Claude tool names do not exist in Cursor (e.g. Claude `Glob`, `WebFetch`, `WebSearch`)
+2. **Native vs compatibility mode** - Cursor has extra hook features only in native `.cursor/hooks.json`
+3. **Rules vs hooks** - `.mdc` rules remain passive; use hooks for enforcement/automation
 
 ### Conversion Strategy
 
-Claude hooks → Cursor rules (lossy):
+Claude hooks → Cursor hooks (preferred), Cursor rules (fallback):
 ```yaml
 # Claude Hook (cannot be fully converted)
 hooks:
   - event: PreToolUse
     command: "npm run lint"
 
-# Cursor Rule (instructions only)
+# Cursor Hook (preferred)
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      { "matcher": "Write", "command": "npm run lint" }
+    ]
+  }
+}
+
+# Cursor Rule (fallback: instructions only)
 ---
 description: Run linting before committing
 globs: ["src/**/*.ts"]
@@ -247,7 +268,7 @@ globs: ["src/**/*.ts"]
 Before making any code changes, run 'npm run lint' to ensure code quality.
 ```
 
-**Loss**: Command execution becomes documentation-only
+**Loss (fallback only)**: Command execution becomes documentation-only
 
 ---
 
@@ -403,8 +424,8 @@ CACE's `--strategy=dual-output` generates BOTH artifacts:
 | Context fork | ✅ | ❌ | ❌ | ⚠️ subtask | ❌ | ❌ |
 | Tool restrictions | ✅ allowed-tools | ❌ | ❌ | ⚠️ permissions | ⚠️ MCP | ❌ |
 | Agent delegation | ✅ agent: | ❌ | ❌ | ✅ Yes | ❌ | ❌ |
-| Hook execution | ✅ PreToolUse | ❌ | ❌ | ❌ | ❌ | ❌ |
-| YAML frontmatter | ✅ Full | ⚠️ Partial | ⚠️ .mdc | ✅ Full | ✅ Full | ❌ None |
+| Hook execution | ✅ PreToolUse | ❌ | ✅ | ❌ | ❌ | ❌ |
+| YAML frontmatter | ✅ Full | ⚠️ Partial | ✅ (Skills) | ✅ Full | ✅ Full | ❌ None |
 
 ### Partial Equivalents
 
@@ -413,6 +434,7 @@ CACE's `--strategy=dual-output` generates BOTH artifacts:
 | Isolation | `context: fork` | OpenCode | `subtask: true` |
 | Tool control | `allowed-tools` | OpenCode | `permission` object |
 | Auto-invocation | `disable-model-invocation` | Windsurf | Skill vs Workflow |
+| Auto-invocation | `disable-model-invocation` | Cursor | Cursor Skills (native) |
 | Path matching | Triggers/globs | Cursor | `globs` in .mdc |
 
 ---
@@ -446,4 +468,4 @@ CACE's `--strategy=dual-output` generates BOTH artifacts:
 
 ---
 
-*Document generated by CACE v2.3.0*
+*Document generated by CACE v2.5.0*

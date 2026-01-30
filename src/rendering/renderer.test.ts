@@ -283,14 +283,27 @@ describe("CursorRenderer", () => {
   const renderer = new CursorRenderer();
 
   describe("render", () => {
-    test("renders basic spec to Cursor format", () => {
+    test("renders skill spec to Cursor skill format", () => {
       const spec = createTestSpec();
       const result = renderer.render(spec);
 
       expect(result.success).toBe(true);
-      // Cursor uses markdown structure, not frontmatter
+      expect(result.content).toContain("---");
+      expect(result.content).toContain("name: test-component");
+      expect(result.content).toContain("description: A test component");
+      expect(result.content).toContain("This is the body content");
+    });
+
+    test("renders command spec to Cursor commands format", () => {
+      const spec = createTestSpec({
+        componentType: "command",
+      });
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
       expect(result.content).toContain("# Test Component");
       expect(result.content).toContain("## Objective");
+      expect(result.content).toContain("This is the body content");
     });
 
     test("includes globs when file patterns specified", () => {
@@ -326,17 +339,31 @@ describe("CursorRenderer", () => {
   });
 
   describe("getTargetFilename", () => {
-    test("generates .md filename", () => {
+    test("generates SKILL.md filename for skills", () => {
       const spec = createTestSpec();
       const filename = renderer.getTargetFilename(spec);
 
-      expect(filename).toContain(".md");
+      expect(filename).toBe("test-component/SKILL.md");
+    });
+
+    test("generates .md filename for commands", () => {
+      const spec = createTestSpec({ componentType: "command" });
+      const filename = renderer.getTargetFilename(spec);
+
+      expect(filename).toBe("test-component.md");
     });
   });
 
   describe("getTargetDirectory", () => {
-    test("returns Cursor commands directory", () => {
+    test("returns Cursor skills directory for skills", () => {
       const spec = createTestSpec();
+      const dir = renderer.getTargetDirectory(spec);
+
+      expect(dir).toBe(".cursor/skills");
+    });
+
+    test("returns Cursor commands directory for commands", () => {
+      const spec = createTestSpec({ componentType: "command" });
       const dir = renderer.getTargetDirectory(spec);
 
       expect(dir).toBe(".cursor/commands");

@@ -43,11 +43,11 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
   cursor: {
     id: 'cursor',
     displayName: 'Cursor',
-    componentTypes: ['command', 'rule', 'memory', 'config'],
+    componentTypes: ['skill', 'command', 'rule', 'memory', 'config'],
     fileExtension: '.md',
     configLocations: {
-      project: '.cursor/commands',
-      user: '~/.cursor/commands',
+      project: '.cursor',
+      user: '~/.cursor',
     },
   },
   gemini: {

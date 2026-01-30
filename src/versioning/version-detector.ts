@@ -323,6 +323,15 @@ export function detectCursorVersion(
     v16.markers.push("File in .cursor/commands/ directory (v1.6+ feature)");
   }
 
+  // Check for .cursor/skills/<name>/SKILL.md (v2.4+)
+  if (filePath?.match(/\.cursor\/skills\/[^/]+\/SKILL\.md$/)) {
+    const v24 = scores.get("2.4");
+    if (v24) {
+      v24.score += 12;
+      v24.markers.push("Is Cursor skill file (.cursor/skills/<name>/SKILL.md) (v2.4+)");
+    }
+  }
+
   // Find best match
   let bestVersion = getCurrentVersion("cursor")?.version ?? "2.3";
   let bestScore = 0;

@@ -1,6 +1,6 @@
 {
   "name": "cace-cli",
-  "version": "2.3.0",
+  "version": "2.5.0",
   "description": "Cross-Agent Compatibility Engine - Convert and validate AI agent components between Claude, Cursor, Windsurf, OpenCode, Codex, and Gemini",
   "type": "module",
   "main": "dist/index.js",

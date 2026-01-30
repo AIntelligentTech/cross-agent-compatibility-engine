@@ -367,6 +367,13 @@ export const CURSOR_FEATURES: FeatureFlag[] = [
     introducedIn: "2.2",
   },
   {
+    id: "cursor-skills",
+    name: "Agent Skills",
+    description:
+      "Agent Skills standard (.cursor/skills/<name>/SKILL.md) including Claude compatibility directories (.claude/skills)",
+    introducedIn: "2.4",
+  },
+  {
     id: "cursor-agent-autocomplete",
     name: "Agent Autocomplete",
     description: "Command suggestions for agents",
@@ -493,13 +500,39 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
     version: "2.3",
     semver: { major: 2, minor: 3, patch: 0 },
     releaseDate: "2025-12-22",
-    isCurrent: true,
+    isCurrent: false,
     isSupported: true,
     featuresIntroduced: [],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
     detectionMarkers: [],
+  },
+  {
+    agent: "cursor",
+    version: "2.4",
+    semver: { major: 2, minor: 4, patch: 0 },
+    releaseDate: "2026-01-15",
+    isCurrent: true,
+    isSupported: true,
+    featuresIntroduced: ["cursor-skills"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "file_pattern",
+        pattern: "\\.cursor/skills/[^/]+/SKILL\\.md$",
+        weight: 10,
+        indicatesVersionOrLater: true,
+      },
+      {
+        type: "file_pattern",
+        pattern: "\\.claude/skills/[^/]+/SKILL\\.md$",
+        weight: 6,
+        indicatesVersionOrLater: true,
+      },
+    ],
   },
 ];
 
