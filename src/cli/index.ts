@@ -66,7 +66,7 @@ const program = new Command();
 program
   .name("cace")
   .description("Cross-Agent Compatibility Engine - Convert and validate AI agent components")
-  .version("2.5.1");
+  .version("2.5.2");
 
 // ============================================================================
 // WIZARD MODE (Multi-Select Installation Wizard)
@@ -257,7 +257,6 @@ program
     }
 
     const renderResult = renderer.render(parseResult.spec, {
-      includeComments: true,
       validateOutput: options.validate !== false,
     });
 
@@ -732,7 +731,6 @@ program
         
         // Render the component
         const renderResult = renderComponent(parseResult.spec, targetAgent, {
-          includeComments: true,
           validateOutput: true,
         });
         
@@ -761,7 +759,6 @@ program
             if (targetAgent === "windsurf") {
               // For Windsurf, secondary is a Skill for auto-invocation parity. Use Claude renderer (compatible Skill.md frontmatter).
               const skillRenderResult = renderComponent(parseResult.spec!, "claude", {
-                includeComments: true,
                 validateOutput: true,
               });
               if (skillRenderResult.success && skillRenderResult.content && !options.dryRun) {
@@ -776,7 +773,6 @@ program
                 activation: { ...parseResult.spec!.activation, mode: "manual" },
               };
               const commandRenderResult = renderComponent(commandSpec, "cursor", {
-                includeComments: true,
                 validateOutput: true,
               });
               if (commandRenderResult.success && commandRenderResult.content && !options.dryRun) {

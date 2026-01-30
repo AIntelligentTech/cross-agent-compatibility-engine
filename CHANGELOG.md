@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - 2026-01-30
+
+### 🐛 Bug Fixes
+
+- **Remove automatic comment injection**: CACE no longer inserts "Converted from..." comments into generated files by default.
+  - Fixes compatibility with `agent-deep-toolkit` which failed to parse files with comments between frontmatter and body.
+  - Ensures cleaner output that strictly adheres to agent file format specifications.
+
 ## [2.5.1] - 2026-01-30
 
 ### 🛠️ Fix YAML-frontmatter-first output (Windsurf loader compatibility)
