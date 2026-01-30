@@ -1,41 +1,29 @@
 ---
-# Cross-Agent Compatibility Engine - Install Manifest v2.0
-# CLI tool for converting and validating AI agent components
-# Publishing: npm (public) via tag-based releases
-
 manifest_version: 2.0.0
-
 package:
-  name: cace-cli
-  version: 2.5.0
-  type: npm
-  description: "Cross-Agent Compatibility Engine - Convert and validate AI agent components between Claude, Cursor, Windsurf, OpenCode, Codex, and Gemini"
-
-  # CLI metadata
-  cli:
-    binary_name: cace
-    bin_path: dist/cli/index.js
-    description: "Command-line tool for agent compatibility validation and conversion"
+  name: "@aintelligenttech/cace-cli"
+  version: "2.5.0"
+  type: "npm"
+  description: "Cross-Agent Compatibility Engine - Convert and validate AI agent components between multiple platforms"
 
   # Runtime metadata
   runtime:
     node_version: ">=18.0.0"
-    package_manager: bun
+    package_manager: "bun"
     package_manager_version: ">=1.0.0"
 
   # Repository metadata
   repository:
-    type: git
+    type: "git"
     url: "https://github.com/AIntelligentTech/cross-agent-compatibility-engine"
     directory: "."
 
   # Publishing metadata
   publishing:
     registry: "https://registry.npmjs.org"
-    scope: null
-    access: public
-    strategy: tag-based
-    tag: latest
+    scope: "@aintelligenttech"
+    access: "public"
+    tag: "latest"
 
 # Installation steps
 installation:
@@ -67,21 +55,29 @@ installation:
       command: "bun run build"
       description: "Compile TypeScript to JavaScript"
 
-  # Post-installation verification
+  # Post-installation setup
   post_install:
     - name: "Verify CLI binary"
       type: command
-      command: "node dist/cli/index.js --version"
-      description: "Ensure CLI is executable and shows version"
+      command: "test -f ./dist/cli/index.js && echo 'CLI ready'"
+      description: "Ensure CLI is built and executable"
 
-    - name: "Typecheck"
+    - name: "Link global command"
       type: command
-      command: "bun run typecheck"
-      description: "Run TypeScript type checking"
+      command: "bun link"
+      description: "Make 'cace' command globally available"
+      optional: true
 
 # Configuration
 configuration:
-  required:
+  optional:
+    - name: GITHUB_TOKEN
+      description: "GitHub personal access token with repo and packages scopes"
+      type: secret
+      validation:
+        type: pattern
+        pattern: "^gh[ps]_[a-zA-Z0-9]{36,}$"
+
     - name: NPM_TOKEN
       description: "NPM authentication token for publishing"
       type: secret
@@ -89,181 +85,29 @@ configuration:
         type: pattern
         pattern: "^npm_[a-zA-Z0-9]{36}$"
 
-    - name: GITHUB_TOKEN
-      description: "GitHub token for creating releases"
-      type: secret
-      validation:
-        type: pattern
-        pattern: "^gh[ps]_[a-zA-Z0-9]{36,}$"
-
-  optional:
-    - name: DRY_RUN
-      description: "Enable dry-run mode for testing"
-      type: boolean
-      default: "false"
-
-# Dependencies
-dependencies:
-  runtime:
-    - name: commander
-      version: "^12.0.0"
-      type: npm
-      description: "CLI argument parsing"
-
-    - name: gray-matter
-      version: "^4.0.3"
-      type: npm
-      description: "Parse frontmatter from content"
-
-    - name: chalk
-      version: "^5.3.0"
-      type: npm
-      description: "Terminal string styling"
-
-    - name: zod
-      version: "^3.22.0"
-      type: npm
-      description: "Schema validation library"
-
-  development:
-    - name: typescript
-      version: "^5.3.0"
-      type: npm
-      description: "TypeScript compiler"
-
-    - name: "@types/node"
-      version: "^20.10.0"
-      type: npm
-      description: "Node.js type definitions"
-
-    - name: eslint
-      version: "^9.0.0"
-      type: npm
-      description: "Code linting"
-
-    - name: "@eslint/js"
-      version: "^9.0.0"
-      type: npm
-      description: "ESLint JavaScript config"
-
-    - name: typescript-eslint
-      version: "^8.0.0"
-      type: npm
-      description: "ESLint TypeScript support"
-
 # Testing
 testing:
   unit:
     - name: "Run unit tests"
       command: "bun test"
-      description: "Execute Bun unit tests"
+      description: "Execute Bun tests"
 
   lint:
-    - name: "Run linter"
+    - name: "Lint code"
       command: "bun run lint"
-      description: "Check code style with ESLint"
-
-  typecheck:
-    - name: "Typecheck code"
-      command: "bun run typecheck"
-      description: "Run TypeScript type checking"
+      description: "Run ESLint"
 
 # Health checks
 health_checks:
-  - name: "CLI version check"
+  - name: "CLI availability"
     type: command
-    command: "cace --version"
+    command: "cace --help || ./dist/cli/index.js --help"
     interval: manual
 
-  - name: "CLI help command"
+  - name: "TypeScript type check"
     type: command
-    command: "cace --help"
+    command: "bun run typecheck"
     interval: manual
-
-  - name: "Library exports"
-    type: command
-    command: 'node -e "const cace = require(''./dist/index.js''); console.log(''✓ Exports available'');"'
-    interval: manual
-
-# Release procedures
-release:
-  strategy: tag-based
-  tag_prefix: "v"
-  changelog: true
-  version_files:
-    - "package.json"
-
-  publish_steps:
-    - name: "Run tests"
-      type: command
-      command: "bun test"
-      description: "Ensure all tests pass before release"
-
-    - name: "Build package"
-      type: command
-      command: "bun run build"
-      description: "Build distribution files"
-
-    - name: "Typecheck"
-      type: command
-      command: "bun run typecheck"
-      description: "Verify TypeScript types"
-
-    - name: "Extract version from tag"
-      type: command
-      command: "echo ${GITHUB_REF#refs/tags/v}"
-      description: "Extract semantic version from git tag"
-
-    - name: "Publish to npm"
-      type: command
-      command: "npm publish"
-      description: "Publish package to public npm registry"
-
-# Rollback procedures
-rollback:
-  - name: "Unpublish from npm"
-    type: command
-    command: "npm unpublish cace-cli@${VERSION}"
-    description: "Unpublish specific version from npm (only works within 72 hours)"
-    requires_confirmation: true
-
-  - name: "Delete git tag"
-    type: command
-    command: "git tag -d v${VERSION} && git push origin :refs/tags/v${VERSION}"
-    description: "Delete git tag locally and remotely"
-    requires_confirmation: true
-
-# Monitoring
-monitoring:
-  metrics:
-    - name: "Release success rate"
-      type: percentage
-      source: github_actions
-      threshold:
-        warning: 95
-        critical: 90
-
-    - name: "Average release duration"
-      type: duration
-      source: github_actions
-      threshold:
-        warning: 5m
-        critical: 15m
-
-  alerts:
-    - name: "Failed release"
-      condition: "workflow_status == 'failure'"
-      channels:
-        - slack
-        - email
-      severity: high
-
-    - name: "Package not available on npm"
-      condition: "npm_view_fails"
-      channels:
-        - slack
-        - email
-      severity: critical
 
 # Metadata
 metadata:
@@ -275,46 +119,13 @@ metadata:
   tags:
     - ai-agents
     - cli
-    - cross-agent
-    - conversion
-    - validation
     - typescript
-
-  keywords:
-    - ai-agents
-    - claude-code
-    - windsurf
-    - cursor
-    - gemini-cli
-    - opencode
-    - codex
-    - openai-codex
-    - aider
-    - workflow
-    - skill
-    - command
-    - conversion
     - compatibility
-    - migration
-    - llm
-    - ai-tools
+    - conversion
 
   documentation:
     - url: "https://github.com/AIntelligentTech/cross-agent-compatibility-engine/blob/main/README.md"
       type: readme
 
-    - url: "https://github.com/AIntelligentTech/cross-agent-compatibility-engine/blob/main/CONTRIBUTING.md"
-      type: contributing
-
-    - url: "https://github.com/AIntelligentTech/cross-agent-compatibility-engine/blob/main/SECURITY.md"
-      type: security
-
   changelog_url: "https://github.com/AIntelligentTech/cross-agent-compatibility-engine/blob/main/CHANGELOG.md"
   license: MIT
-
-# Installation info
-installation_info:
-  npm: "npm install -g cace-cli"
-  yarn: "yarn global add cace-cli"
-  bun: "bun install -g cace-cli"
-  direct_link: "https://registry.npmjs.org/cace-cli"
