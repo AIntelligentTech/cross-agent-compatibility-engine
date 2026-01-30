@@ -99,6 +99,17 @@ coding assistants as of January 2026.
 | Shell output injection     | ❌ No             | ❌ No             | ❌ No               | ❌ No             | ✅ `!\`command\``           | ❌ No          |
 | File reference in prompt   | ❌ No             | ❌ No             | ❌ No               | ❌ No             | ✅ `@filename`              | ❌ No          |
 
+#### 2.3.1 Loader strictness: YAML frontmatter must be first
+
+Several agents (notably **Windsurf Workflows**) treat these artifacts as *structured configuration*,
+not “just markdown”. In practice this means:
+
+- **YAML frontmatter (`---`) must be the first meaningful content in the file.**
+- Do **not** prefix the file with HTML comments (even benign provenance like `<!-- Converted from ... -->`),
+  because some loaders will fail to register the workflow/skill/tool.
+- If you need provenance/traceability, place it **after** the closing frontmatter delimiter (`---`),
+  before the markdown body.
+
 ### 2.4 Hook/Lifecycle Features
 
 | Feature               | Claude Code                 | Windsurf                                             |
