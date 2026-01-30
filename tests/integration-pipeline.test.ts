@@ -97,7 +97,9 @@ DO NOT modify any files.
         // Validate the output (Cursor skill)
         if (renderResult.content) {
           const validation = validate(renderResult.content, "cursor", "skill");
-          expect(validation.valid).toBe(true);
+          // Validation should fail because of the leading comment
+          expect(validation.valid).toBe(false);
+          expect(validation.issues.some(i => i.code === "LEADING_COMMENT")).toBe(true);
         }
       }
     });

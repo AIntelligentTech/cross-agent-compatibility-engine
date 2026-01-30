@@ -71,6 +71,9 @@ export class CursorValidator extends BaseValidator {
       const fm = parsed.data as CursorFrontmatter;
       const body = parsed.content.trim();
 
+      // Validate structure (check for leading comments)
+      this.validateStructure(body, issues);
+
       switch (componentType) {
         case 'rule':
           this.validateRule(fm, body, version, issues, warnings, info, options);

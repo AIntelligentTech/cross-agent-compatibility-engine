@@ -43,6 +43,9 @@ export class WindsurfValidator extends BaseValidator {
       const fm = parsed.data as WindsurfFrontmatter;
       const body = parsed.content.trim();
 
+      // Validate structure (check for leading comments)
+      this.validateStructure(body, issues);
+
       switch (componentType) {
         case 'skill':
           this.validateSkill(fm, body, version, issues, warnings, info, options);

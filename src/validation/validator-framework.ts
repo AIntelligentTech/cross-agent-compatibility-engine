@@ -102,6 +102,23 @@ export abstract class BaseValidator {
   getLatestVersion(): string {
     return this.supportedVersions[this.supportedVersions.length - 1] ?? '1.0.0';
   }
+
+  protected validateStructure(
+    body: string,
+    issues: ValidationIssue[]
+  ): void {
+    if (body.trimStart().startsWith('<!--')) {
+      issues.push(
+        this.createIssue(
+          'LEADING_COMMENT',
+          'Body content must not start with a comment. Ensure YAML frontmatter is immediately followed by meaningful content.',
+          'error',
+          undefined,
+          'Remove comments between --- and the start of the body content.'
+        )
+      );
+    }
+  }
 }
 
 export class ValidatorRegistry {

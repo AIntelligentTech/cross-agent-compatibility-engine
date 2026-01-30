@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3] - 2026-01-30
+
+### 🛡️ Enhanced Validation
+
+- **Implemented strict structure validation** for Claude, Windsurf, and Cursor agents.
+  - Validators now explicitly reject files with comments between YAML frontmatter and body content.
+  - Ensures full compatibility with strict parsers in downstream tools like `agent-deep-toolkit`.
+  - Added `LEADING_COMMENT` validation error code.
+
 ## [2.5.2] - 2026-01-30
 
 ### 🐛 Bug Fixes

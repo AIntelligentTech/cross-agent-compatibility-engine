@@ -45,6 +45,9 @@ export class ClaudeValidator extends BaseValidator {
       const fm = parsed.data as ClaudeFrontmatter;
       const body = parsed.content.trim();
 
+      // Validate structure (check for leading comments)
+      this.validateStructure(body, issues);
+
       // Validate based on component type
       switch (componentType) {
         case 'skill':

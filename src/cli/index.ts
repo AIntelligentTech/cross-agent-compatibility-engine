@@ -66,7 +66,7 @@ const program = new Command();
 program
   .name("cace")
   .description("Cross-Agent Compatibility Engine - Convert and validate AI agent components")
-  .version("2.5.2");
+  .version("2.5.3");
 
 // ============================================================================
 // WIZARD MODE (Multi-Select Installation Wizard)
