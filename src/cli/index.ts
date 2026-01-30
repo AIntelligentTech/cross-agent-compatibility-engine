@@ -1,10 +1,48 @@
 #!/usr/bin/env node
 /**
- * CACE CLI - Simplified, intuitive interface
+ * CACE CLI - Cross-Agent Compatibility Engine
+ * 
+ * Architecture Overview:
+ * =====================
+ * CACE implements a canonical intermediate representation (IR) that enables
+ * conversion between AI coding agent formats. The core architecture consists of:
+ * 
+ * 1. Parser Layer: Transforms agent-specific formats into the canonical IR
+ * 2. Renderer Layer: Converts the IR into agent-specific output formats
+ * 3. Validation Layer: Validates conformance to agent specifications
+ * 4. Transformation Layer: Applies semantic mappings and adaptations
+ * 
+ * Dual-Output Strategy (Claude → Windsurf):
+ * ==========================================
+ * The --strategy=dual-output feature addresses the fundamental architectural
+ * difference between Claude and Windsurf:
+ * 
+ *   Claude Skills: Can be BOTH auto-invoked (progressive disclosure) AND 
+ *                  manually invoked (/command). This is a unified model.
+ * 
+ *   Windsurf:     Forces a BINARY choice:
+ *                  - Skills: Auto-invoked, no /command access
+ *                  - Workflows: Manual /command, no auto-invocation
+ * 
+ * The dual-output strategy solves this by generating BOTH artifacts:
+ * 
+ *   1. .windsurf/workflows/<skill>.md  → User-facing workflow for manual /command
+ *   2. .windsurf/skills/<skill>/SKILL.md → Skill file for auto-invocation parity
+ * 
+ * This preserves the Claude "dual-nature" capability in Windsurf's bifurcated model.
+ * 
+ * Agent Parity Considerations:
+ * ============================
+ * - Claude allowed-tools vs Windsurf tool restrictions: No equivalent in Windsurf
+ * - Claude fork context vs Windsurf isolation: No equivalent in Windsurf
+ * - Cursor .mdc alwaysApply vs Claude hooks: Different activation semantics
+ * - OpenCode permission patterns: Approximate allowed-tools via config
+ * 
+ * See: docs/AGENT_PARITY_KNOWLEDGE.md for comprehensive parity analysis
  * 
  * Core commands:
  * - install: Install/generate scaffolding for agents
- * - convert: Convert between agent formats
+ * - convert: Convert between agent formats (supports --strategy=dual-output)
  * - validate: Validate agent files
  * - doctor: Check system compatibility
  */
@@ -13,7 +51,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { readFileSync, existsSync, mkdirSync, writeFileSync, copyFileSync, readdirSync, statSync } from "fs";
 import { dirname, join, basename, relative, resolve } from "path";
-import type { AgentId } from "../core/types.js";
+import type { AgentId, ComponentSpec } from "../core/types.js";
 import { SUPPORTED_AGENTS } from "../core/constants.js";
 import { validate } from "../validation/index.js";
 import { getParser, parseComponent, detectAgent } from "../parsing/parser-factory.js";
@@ -155,6 +193,7 @@ program
   .option("-o, --output <path>", "Output file path (auto-generated if not specified)")
   .option("-v, --verbose", "Show detailed conversion info")
   .option("--no-validate", "Skip validation of output")
+  .option("--strategy <strategy>", "Conversion strategy: direct (default) or dual-output", "direct")
   .action((source: string, options) => {
     console.log(chalk.blue(`🔄 Converting ${source}...`));
 
@@ -233,24 +272,73 @@ program
       process.exit(1);
     }
 
-    // Determine output path
-    const outputPath = options.output || renderResult.filename || generateOutputPath(source, targetAgent);
-    
-    // Ensure directory exists
-    const outputDir = dirname(outputPath);
-    if (!existsSync(outputDir)) {
-      mkdirSync(outputDir, { recursive: true });
+    // Handle dual-output strategy for Claude → Windsurf conversion
+    const strategy = options.strategy || "direct";
+    const outputPaths: string[] = [];
+
+    if (strategy === "dual-output" && fromAgent === "claude" && targetAgent === "windsurf") {
+      // Dual-output: Generate both Workflow (manual) and Skill (auto-invocation)
+      const skillName = parseResult.spec?.id || basename(source, ".md");
+
+      // Path 1: Workflow for user invocation
+      const workflowPath = options.output
+        ? options.output.replace(".md", "-workflow.md")
+        : join(dirname(source), ".windsurf", "workflows", `${skillName}.md`);
+
+      // Path 2: Skill for auto-execution parity
+      const skillPath = options.output
+        ? options.output.replace(".md", "-skill.md")
+        : join(dirname(source), ".windsurf", "skills", skillName, "SKILL.md");
+
+      // Create workflow content (adapted for manual invocation)
+      const workflowContent = createWorkflowFromSkill(renderResult.content, parseResult.spec);
+
+      // Ensure directories exist
+      const workflowDir = dirname(workflowPath);
+      const skillDir = dirname(skillPath);
+      if (!existsSync(workflowDir)) mkdirSync(workflowDir, { recursive: true });
+      if (!existsSync(skillDir)) mkdirSync(skillDir, { recursive: true });
+
+      // Write both outputs
+      writeFileSync(workflowPath, workflowContent, "utf-8");
+      writeFileSync(skillPath, renderResult.content, "utf-8");
+
+      outputPaths.push(workflowPath, skillPath);
+
+      console.log();
+      console.log(chalk.green.bold("✅ Dual-Output Conversion Complete\n"));
+      console.log(chalk.cyan(`📄 Source: ${chalk.white(source)}`));
+      console.log(chalk.cyan(`🎯 Targets:`));
+      console.log(chalk.cyan(`   Workflow: ${chalk.white(workflowPath)}`));
+      console.log(chalk.cyan(`   Skill:    ${chalk.white(skillPath)}`));
+      console.log(chalk.cyan(`🤖 Agents: ${chalk.white(fromAgent)} → ${chalk.white(targetAgent)}`));
+      console.log();
+      console.log(chalk.blue.bold("📊 Strategy: Dual-Output\n"));
+      console.log(chalk.cyan("   This conversion preserves Claude's dual-nature capability:"));
+      console.log(chalk.gray("   • Workflow: Manual /command invocation by user"));
+      console.log(chalk.gray("   • Skill: Auto-invocation for progressive disclosure"));
+    } else {
+      // Standard single-output conversion
+      // Determine output path
+      const outputPath = options.output || renderResult.filename || generateOutputPath(source, targetAgent);
+      outputPaths.push(outputPath);
+
+      // Ensure directory exists
+      const outputDir = dirname(outputPath);
+      if (!existsSync(outputDir)) {
+        mkdirSync(outputDir, { recursive: true });
+      }
+
+      // Write output
+      writeFileSync(outputPath, renderResult.content, "utf-8");
+
+      // Print rich output header
+      console.log();
+      console.log(chalk.green.bold("✅ Conversion Complete\n"));
+      console.log(chalk.cyan(`📄 Source: ${chalk.white(source)}`));
+      console.log(chalk.cyan(`🎯 Target: ${chalk.white(outputPath)}`));
+      console.log(chalk.cyan(`🤖 Agents: ${chalk.white(fromAgent)} → ${chalk.white(targetAgent)}`));
     }
-
-    // Write output
-    writeFileSync(outputPath, renderResult.content, "utf-8");
-
-    // Print rich output header
-    console.log();
-    console.log(chalk.green.bold("✅ Conversion Complete\n"));
-    console.log(chalk.cyan(`📄 Source: ${chalk.white(source)}`));
-    console.log(chalk.cyan(`🎯 Target: ${chalk.white(outputPath)}`));
-    console.log(chalk.cyan(`🤖 Agents: ${chalk.white(fromAgent)} → ${chalk.white(targetAgent)}`));
     console.log();
 
     // Fidelity score with visual indicator
@@ -329,9 +417,26 @@ program
     console.log();
 
     console.log(chalk.blue.bold("📋 Next Steps\n"));
-    console.log(chalk.white(`   1. Review the converted file: ${chalk.cyan(outputPath)}`));
-    console.log(chalk.white(`   2. Validate the output: ${chalk.cyan(`cace validate "${outputPath}" --from ${targetAgent}`)}`));
-    console.log(chalk.white(`   3. Test in your ${targetAgent} environment`));
+    if (strategy === "dual-output" && outputPaths.length > 1) {
+      console.log(chalk.white("   1. Review converted files:"));
+      outputPaths.forEach((path) => {
+        console.log(chalk.cyan(`      • ${path}`));
+      });
+      console.log();
+      console.log(chalk.white("   2. Validate outputs:"));
+      outputPaths.forEach((path) => {
+        console.log(chalk.cyan(`      • cace validate "${path}" --from ${targetAgent}`));
+      });
+      console.log();
+      console.log(chalk.white("   3. Test in your Windsurf environment:"));
+      console.log(chalk.gray("      • Use /command to invoke workflow"));
+      console.log(chalk.gray("      • Skill will auto-invoke based on context"));
+    } else {
+      const singlePath = outputPaths[0];
+      console.log(chalk.white(`   1. Review the converted file: ${chalk.cyan(singlePath)}`));
+      console.log(chalk.white(`   2. Validate the output: ${chalk.cyan(`cace validate "${singlePath}" --from ${targetAgent}`)}`));
+      console.log(chalk.white(`   3. Test in your ${targetAgent} environment`));
+    }
     console.log();
 
     // Verbose mode details
@@ -507,7 +612,8 @@ program
   .option("--include <patterns...>", "Include files matching these patterns")
   .option("--exclude <patterns...>", "Exclude files matching these patterns")
   .option("-v, --verbose", "Show detailed conversion info for each file")
-  .action(async (source: string, options: { to: string; from?: string; output?: string; recursive?: boolean; dryRun?: boolean; backup?: boolean; include?: string[]; exclude?: string[]; verbose?: boolean }) => {
+  .option("--strategy <strategy>", "Conversion strategy: direct (default) or dual-output", "direct")
+  .action(async (source: string, options: { to: string; from?: string; output?: string; recursive?: boolean; dryRun?: boolean; backup?: boolean; include?: string[]; exclude?: string[]; verbose?: boolean; strategy?: string }) => {
     console.log(chalk.blue.bold("\n📁 Directory Conversion\n"));
     
     // Validate source is a directory
@@ -622,6 +728,9 @@ program
         }
         
         const targetAgent = options.to as AgentId;
+        const strategy = options.strategy || "direct";
+        
+        // Render the component
         const renderResult = renderComponent(parseResult.spec, targetAgent, {
           includeComments: true,
           validateOutput: true,
@@ -635,28 +744,66 @@ program
           continue;
         }
         
-        // Calculate output path
-        const targetPath = calculateDirTargetPath(file, source!, outputDir, targetAgent);
-        
-        if (!options.dryRun) {
-          // Backup if needed
-          if (options.backup && existsSync(targetPath)) {
-            copyFileSync(targetPath, `${targetPath}.backup.${Date.now()}`);
+        // Handle dual-output strategy for Claude → Windsurf
+        if (strategy === "dual-output" && fromAgent === "claude" && targetAgent === "windsurf") {
+          // Dual-output: Generate both Workflow (manual) and Skill (auto-invocation)
+          
+          // 1. Write Workflow to .windsurf/workflows/<skill>.md
+          const workflowPath = calculateDirTargetPath(file, source!, outputDir, targetAgent);
+          
+          if (!options.dryRun) {
+            mkdirSync(dirname(workflowPath), { recursive: true });
+            writeFileSync(workflowPath, renderResult.content, "utf-8");
           }
           
-          // Ensure directory exists
-          mkdirSync(dirname(targetPath), { recursive: true });
+          // 2. Write Skill to .windsurf/skills/<skill>/SKILL.md (preserves auto-invocation)
+          const skillDir = join(outputDir, ".windsurf", "skills", parseResult.spec!.id);
+          const skillPath = join(skillDir, "SKILL.md");
           
-          // Write file
-          writeFileSync(targetPath, renderResult.content, "utf-8");
-        }
-        
-        results.success++;
-        
-        if (options.verbose) {
-          const fidelity = renderResult.report?.fidelityScore || 0;
-          const color = fidelity >= 90 ? chalk.green : fidelity >= 75 ? chalk.yellow : chalk.red;
-          console.log(color(`  ✓ ${relativePath} (${fidelity}%)`));
+          // Re-render for skill format (use Claude renderer to preserve structure)
+          const skillRenderResult = renderComponent(parseResult.spec!, "claude", {
+            includeComments: true,
+            validateOutput: true,
+          });
+          
+          if (skillRenderResult.success && skillRenderResult.content) {
+            if (!options.dryRun) {
+              mkdirSync(skillDir, { recursive: true });
+              writeFileSync(skillPath, skillRenderResult.content, "utf-8");
+            }
+          }
+          
+          results.success++;
+          
+          if (options.verbose) {
+            const fidelity = renderResult.report?.fidelityScore || 0;
+            const color = fidelity >= 90 ? chalk.green : fidelity >= 75 ? chalk.yellow : chalk.red;
+            console.log(color(`  ✓ ${relativePath} → workflow + skill (${fidelity}%)`));
+          }
+        } else {
+          // Standard single-output conversion
+          const targetPath = calculateDirTargetPath(file, source!, outputDir, targetAgent);
+          
+          if (!options.dryRun) {
+            // Backup if needed
+            if (options.backup && existsSync(targetPath)) {
+              copyFileSync(targetPath, `${targetPath}.backup.${Date.now()}`);
+            }
+            
+            // Ensure directory exists
+            mkdirSync(dirname(targetPath), { recursive: true });
+            
+            // Write file
+            writeFileSync(targetPath, renderResult.content, "utf-8");
+          }
+          
+          results.success++;
+          
+          if (options.verbose) {
+            const fidelity = renderResult.report?.fidelityScore || 0;
+            const color = fidelity >= 90 ? chalk.green : fidelity >= 75 ? chalk.yellow : chalk.red;
+            console.log(color(`  ✓ ${relativePath} (${fidelity}%)`));
+          }
         }
       } catch (e) {
         results.error++;
@@ -872,31 +1019,70 @@ function generateDirOutputPath(source: string, targetAgent: AgentId): string {
 }
 
 function calculateDirTargetPath(sourceFile: string, sourceDir: string, outputDir: string, targetAgent: AgentId): string {
+  const paths = calculateDirTargetPaths(sourceFile, sourceDir, outputDir, targetAgent);
+  return paths.primary;
+}
+
+interface DualTargetPaths {
+  primary: string;
+  secondary?: string;
+}
+
+function calculateDirTargetPaths(sourceFile: string, sourceDir: string, outputDir: string, targetAgent: AgentId): DualTargetPaths {
   const relativePath = relative(sourceDir, sourceFile);
-  const baseName = basename(relativePath, ".md");
+  const baseName = basename(sourceFile, ".md");
+  const fullPath = sourceFile;
   
   // Map to target agent structure
   const agentInfo = AGENTS[targetAgent];
-  let targetSubdir = "";
+  const projectPath: string = agentInfo.configLocations.project || ".";
+  let targetSubdir: string = "";
   
-  if (relativePath.includes("/skills/") || relativePath.includes("\\skills\\")) {
-    targetSubdir = join(agentInfo.configLocations.project, "skills", baseName);
-  } else if (relativePath.includes("/commands/") || relativePath.includes("\\commands\\")) {
-    targetSubdir = join(agentInfo.configLocations.project, "commands");
-  } else if (relativePath.includes("/rules/") || relativePath.includes("\\rules\\")) {
-    targetSubdir = join(agentInfo.configLocations.project, "rules");
-  } else {
-    targetSubdir = agentInfo.configLocations.project;
-  }
+  // Check if this is a skill file (in a skills subdirectory)
+  const isSkillFile = fullPath.includes("/skills/") || fullPath.includes("\\skills\\") || 
+                      relativePath.includes("/skills/") || relativePath.includes("\\skills\\") ||
+                      (relativePath.match(/^[^/]+\/SKILL\.md$/) !== null);
   
-  // If converting to skill format, use SKILL.md
-  if (targetAgent === "claude" || targetAgent === "opencode" || targetAgent === "codex" || targetAgent === "gemini") {
-    if (relativePath.includes("/skills/")) {
-      return join(outputDir, targetSubdir, "SKILL.md");
+  if (isSkillFile) {
+    // Extract skill name from path
+    let skillName: string;
+    
+    const match1 = fullPath.match(/\/skills\/([^/]+)\//);
+    const match2 = relativePath.match(/^([^/]+)\/SKILL\.md$/);
+    const windowsMatchResult = fullPath.match(/\\skills\\([^\\]+)\\/)?. [1];
+    const windowsMatch = typeof windowsMatchResult === 'string' ? windowsMatchResult : undefined;
+    
+    if (match1 && match1[1]) {
+      skillName = match1[1];
+    } else if (match2 && match2[1]) {
+      skillName = match2[1];
+    } else if (windowsMatch) {
+      skillName = windowsMatch;
+    } else {
+      skillName = baseName;
     }
+    
+    if (targetAgent === "windsurf") {
+      // Windsurf: Return dual paths for strategy=dual-output
+      return {
+        primary: join(outputDir, ".windsurf", "workflows", `${skillName}.md`),
+        secondary: join(outputDir, ".windsurf", "skills", skillName, "SKILL.md"),
+      };
+    } else if (targetAgent === "claude" || targetAgent === "opencode" || targetAgent === "codex") {
+      targetSubdir = join(projectPath, skillName);
+      return { primary: join(outputDir, targetSubdir, "SKILL.md") };
+    } else {
+      targetSubdir = join(projectPath, skillName);
+    }
+  } else if (relativePath.includes("/commands/") || relativePath.includes("\\commands\\")) {
+    targetSubdir = projectPath;
+  } else if (relativePath.includes("/rules/") || relativePath.includes("\\rules\\")) {
+    targetSubdir = projectPath;
+  } else {
+    targetSubdir = projectPath;
   }
   
-  return join(outputDir, targetSubdir, `${baseName}.md`);
+  return { primary: join(outputDir, targetSubdir, `${basename(sourceFile, ".md")}.md`) };
 }
 
 function detectAgentFromContents(dir: string): AgentId | undefined {
@@ -1126,6 +1312,43 @@ function generateExampleComponent(
   
   writeFileSync(path, content, "utf-8");
   return path;
+}
+
+// ============================================================================
+// Dual-Output Strategy Helper Functions
+// ============================================================================
+
+function createWorkflowFromSkill(skillContent: string, spec: ComponentSpec | undefined): string {
+  // Transform a Windsurf skill into a workflow-friendly format
+  // Workflows are meant for manual /command invocation, so we adapt accordingly
+
+  let workflowContent = skillContent;
+
+  // Update frontmatter for workflow context
+  workflowContent = workflowContent.replace(
+    /^(---\n[\s\S]*?\n---)/,
+    (frontmatter) => {
+      // Add workflow-specific notes to description
+      if (frontmatter.includes("description:")) {
+        frontmatter = frontmatter.replace(
+          /(description:.*)/,
+          "$1\n# This workflow is invoked manually via /command",
+        );
+      }
+      return frontmatter;
+    }
+  );
+
+  // Add invocation guidance at the start of body
+  if (!workflowContent.includes("## Usage")) {
+    const usageNote = `\n> **Manual Invocation**: This workflow is designed for manual /command invocation.\n> For automatic progressive disclosure, use the skill file instead.\n\n`;
+    workflowContent = workflowContent.replace(
+      /(\n---)/,
+      `\n---\n${usageNote}`,
+    );
+  }
+
+  return workflowContent;
 }
 
 function detectAgentFromPath(path: string): AgentId | null {

@@ -3,12 +3,12 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, basename } from 'node:path';
+import { dirname, basename, join } from 'node:path';
 import chalk from 'chalk';
-import type { AgentId } from '../core/types.js';
+import type { AgentId, ComponentSpec } from '../core/types.js';
 import { SUPPORTED_AGENTS } from '../core/constants.js';
 import { transform } from '../transformation/transformer.js';
-import { getTargetPath } from '../rendering/renderer-factory.js';
+import { getTargetPath, getRenderer } from '../rendering/renderer-factory.js';
 
 export interface ConvertOptions {
   from?: AgentId;
@@ -17,6 +17,7 @@ export interface ConvertOptions {
   dryRun?: boolean;
   verbose?: boolean;
   includeComments?: boolean;
+  strategy?: 'direct' | 'dual-output';
 }
 
 export function convertCommand(

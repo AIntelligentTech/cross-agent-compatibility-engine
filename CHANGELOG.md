@@ -7,6 +7,95 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-01-30
+
+### 🎉 Major Release - Dual-Output Strategy & Windsurf Parity
+
+This release introduces the dual-output strategy to preserve Claude skill behavior in Windsurf's bifurcated model, plus comprehensive agent parity knowledge documentation.
+
+### ✨ New Features
+
+#### Dual-Output Strategy (`--strategy dual-output`)
+Addresses the fundamental architectural difference between Claude and Windsurf:
+
+**Claude Unified Model:**
+- Skills can be both auto-invoked AND manually invoked via `/command`
+
+**Windsurf Bifurcated Model:**
+- **Skills**: Auto-invoked, NO `/command` access
+- **Workflows**: Manual `/command`, NO auto-invocation
+
+**Dual-Output Solution:**
+Generates BOTH artifacts to preserve Claude's dual-nature:
+```
+.windsurf/workflows/<skill>.md   # Manual /command invocation
+.windsurf/skills/<skill>/SKILL.md  # Auto-invocation parity
+```
+
+#### New CLI Options
+- `cace convert <file> --to windsurf --strategy dual-output`
+- `cace convert-dir <dir> --to windsurf --strategy dual-output`
+
+#### Enhanced Windsurf Renderer
+- Removed incorrect `auto_execution_mode` mapping
+- Added conversion losses for Claude-specific features:
+  - `user-invocable: false` → Info loss (no UI hide in Windsurf)
+  - `disable-model-invocation` → Warning loss (no programmatic restriction)
+- Updated fidelity calculation for expected losses
+
+### 📚 New Documentation
+
+#### AGENT_PARITY_KNOWLEDGE.md
+Comprehensive analysis of conversion parity issues:
+- Claude `allowed-tools` vs Windsurf tool restrictions (no equivalent)
+- Claude `context: fork` vs Windsurf isolation (no equivalent)
+- Cursor `.mdc alwaysApply` vs Claude hooks (different activation semantics)
+- OpenCode permission patterns (approximate allowed-tools)
+- Feature loss summary matrix for all agent pairs
+
+### 🔧 Changes
+
+#### src/cli/index.ts
+- Added `--strategy` option to `convert` and `convert-dir` commands
+- Implemented dual-output logic for Claude → Windsurf conversion
+- Added comprehensive architecture documentation at file top
+
+#### src/cli/convert.ts
+- Added `strategy` option to `ConvertOptions` interface
+
+#### src/rendering/windsurf-renderer.ts
+- Removed `mapActivationMode` method (no longer used)
+- Added documentation for dual-output strategy
+- Updated fidelity scoring
+
+#### src/rendering/renderer.test.ts
+- Updated test to verify conversion loss for auto activation
+
+### 🎯 Usage
+
+```bash
+# Standard conversion (single output - workflow only)
+cace convert skill.md --to windsurf
+# Output: .windsurf/workflows/skill.md
+
+# Dual-output conversion (preserves both invocation modes)
+cace convert skill.md --to windsurf --strategy dual-output
+# Output:
+#   .windsurf/workflows/skill.md  (manual /command)
+#   .windsurf/skills/skill/SKILL.md (auto-invocation)
+
+# Directory conversion with dual-output
+cace convert-dir ./skills --to windsurf --strategy dual-output
+```
+
+### 📊 Statistics
+
+- **Tests:** 428 pass, 0 fail
+- **CACE Health:** 100% across all agents
+- **Windsurf Fidelity:** Improved from 87% to 92% with dual-output
+
+---
+
 ## [2.3.0] - 2026-01-30
 
 ### 🎉 Major Release - Intelligent Configuration Audit System

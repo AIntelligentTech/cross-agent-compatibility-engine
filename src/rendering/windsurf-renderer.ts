@@ -1,5 +1,16 @@
 /**
  * Renderer for Windsurf (Cascade) workflows
+ * 
+ * Dual-Output Strategy Support:
+ * ==============================
+ * This renderer supports the --strategy=dual-output feature for Claude → Windsurf
+ * conversion. When enabled, it generates:
+ * 
+ * 1. Workflow file (.windsurf/workflows/<skill>.md) - for manual /command invocation
+ * 2. Skill file (.windsurf/skills/<skill>/SKILL.md) - for auto-invocation parity
+ * 
+ * This addresses Windsurf's bifurcated model vs Claude's unified skill model where
+ * skills can be both auto-invoked AND manually invoked.
  */
 
 import type {
@@ -30,17 +41,46 @@ export class WindsurfRenderer extends BaseRenderer {
       description: spec.intent.summary,
     };
 
-    // Map activation mode to auto_execution_mode
-    const autoExecutionMode = this.mapActivationMode(spec.activation.mode);
-    if (autoExecutionMode > 0) {
-      frontmatter["auto_execution_mode"] = autoExecutionMode;
+    // CRITICAL: Windsurf workflows do NOT support auto-execution
+    // All workflows are slash commands requiring manual user invocation
+    // This is a fundamental architectural difference from Claude skills
+    if (spec.activation.mode !== "manual") {
+      losses.push({
+        category: "activation",
+        severity: "warning",
+        description: `Claude "${spec.activation.mode}" activation mode has no Windsurf equivalent`,
+        sourceField: "activation.mode",
+        recommendation: "Windsurf workflows are always slash commands (manual invocation only)",
+      });
     }
-    preservedSemantics.push("Activation mode");
+
+    // Claude user-invocable: false means UI hides but model can still invoke
+    // Windsurf has no equivalent - all workflows are visible and user-invocable
+    if (spec.invocation.userInvocable === false) {
+      losses.push({
+        category: "content",
+        severity: "info",
+        description: "Claude 'user-invocable: false' (UI hide) has no Windsurf equivalent",
+        sourceField: "invocation.userInvocable",
+        recommendation: "Windsurf workflows are always visible and user-invocable",
+      });
+    }
+
+    // Claude disable-model-invocation prevents programmatic invocation
+    // Windsurf has no equivalent - all workflows can be invoked programmatically
+    if (spec.metadata && (spec.metadata as Record<string, unknown>)["disable-model-invocation"] === true) {
+      losses.push({
+        category: "content",
+        severity: "warning",
+        description: "Claude 'disable-model-invocation' has no Windsurf equivalent",
+        sourceField: "metadata.disable-model-invocation",
+        recommendation: "This workflow will be programmatically invokable in Windsurf",
+      });
+    }
 
     // Add tags if present
     if (spec.category && spec.category.length > 0) {
       frontmatter["tags"] = spec.category;
-      preservedSemantics.push("Category tags");
     }
 
     // Check for losses from source agent features
@@ -154,6 +194,43 @@ export class WindsurfRenderer extends BaseRenderer {
     return this.createSuccessResult(content.trim() + "\n", filename, report);
   }
 
+  renderDualOutput(
+    spec: ComponentSpec,
+    options?: RenderOptions,
+  ): { workflowContent: string; skillContent: string; workflowFilename: string; skillFilename: string; report: ConversionReport } {
+    // Render the skill (auto-invocation format)
+    const skillResult = this.render(spec, options);
+    
+    if (!skillResult.success || !skillResult.content) {
+      throw new Error("Failed to render skill content for dual-output");
+    }
+
+    // Render the workflow (manual invocation format)
+    const workflowSpec = { ...spec, componentType: "workflow" as const };
+    const workflowResult = this.render(workflowSpec, options);
+
+    if (!workflowResult.success || !workflowResult.content) {
+      throw new Error("Failed to render workflow content for dual-output");
+    }
+
+    // Add workflow-specific adaptation
+    let adaptedWorkflow = workflowResult.content;
+    if (!adaptedWorkflow.includes("## Usage")) {
+      adaptedWorkflow = adaptedWorkflow.replace(
+        /(\n---)/,
+        `\n---\n> **Manual Invocation**: This workflow is invoked via /${spec.id}\n> For automatic invocation, use the skill file instead.\n`,
+      );
+    }
+
+    return {
+      workflowContent: adaptedWorkflow,
+      skillContent: skillResult.content,
+      workflowFilename: `${spec.id}-workflow.md`,
+      skillFilename: `${spec.id}/SKILL.md`,
+      report: skillResult.report!,
+    };
+  }
+
   getTargetFilename(spec: ComponentSpec): string {
     return `${spec.id}.md`;
   }
@@ -170,23 +247,6 @@ export class WindsurfRenderer extends BaseRenderer {
   ): "workflow" | "rule" {
     if (sourceType === "rule") return "rule";
     return "workflow";
-  }
-
-  private mapActivationMode(mode: ComponentSpec["activation"]["mode"]): number {
-    switch (mode) {
-      case "manual":
-        return 0;
-      case "suggested":
-        return 1;
-      case "contextual":
-        return 2;
-      case "auto":
-        return 3;
-      case "hooked":
-        return 0; // No direct equivalent
-      default:
-        return 0;
-    }
   }
 
   private transformBody(body: string, spec: ComponentSpec): string {
@@ -250,9 +310,15 @@ export class WindsurfRenderer extends BaseRenderer {
     let score = 100;
 
     for (const loss of losses) {
-      if (loss.severity === "critical") score -= 20;
-      else if (loss.severity === "warning") score -= 10;
-      else score -= 5;
+      if (loss.category === "activation" && loss.severity === "warning") {
+        score -= 5; // Auto-execution not supported is expected
+      } else if (loss.severity === "critical") {
+        score -= 20;
+      } else if (loss.severity === "warning") {
+        score -= 10;
+      } else {
+        score -= 5;
+      }
     }
 
     for (const _warning of warnings) {

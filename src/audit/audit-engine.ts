@@ -165,11 +165,21 @@ export interface SystemHealthScore {
   status: "excellent" | "good" | "fair" | "poor" | "critical";
 }
 
+export interface AgentKnowledge {
+  latestVersion: string;
+  deprecatedFeatures: string[];
+  bestPractices: string[];
+  directoryBestPractices?: string[];
+  settingsBestPractices?: string[];
+  newFeatures: string[];
+  antiPatterns: string[];
+}
+
 // ============================================================================
 // Agent Knowledge Base - Up-to-date best practices
 // ============================================================================
 
-const AGENT_KNOWLEDGE_BASE = {
+const AGENT_KNOWLEDGE_BASE: Record<string, AgentKnowledge> = {
   claude: {
     latestVersion: "2.1.0",
     deprecatedFeatures: [
@@ -205,6 +215,8 @@ const AGENT_KNOWLEDGE_BASE = {
       "Use .mdc files with YAML frontmatter",
       "Include description and globs",
       "Set alwaysApply appropriately",
+    ],
+    directoryBestPractices: [
       "Organize by technology/area",
       "Use @mention system effectively",
     ],
@@ -218,6 +230,7 @@ const AGENT_KNOWLEDGE_BASE = {
       "Missing globs specification",
       "Using deprecated .cursorrules",
       "Rules without descriptions",
+      "Flat file structure",
     ],
   },
   windsurf: {
@@ -230,8 +243,10 @@ const AGENT_KNOWLEDGE_BASE = {
       "Separate skills from workflows",
       "Use proper directory structure",
       "Include metadata in workflows",
-      "Organize tools in tools/ directory",
       "Use plans for complex operations",
+    ],
+    directoryBestPractices: [
+      "Organize tools in tools/ directory",
     ],
     newFeatures: [
       "Multi-level hooks",
@@ -250,6 +265,8 @@ const AGENT_KNOWLEDGE_BASE = {
     deprecatedFeatures: [],
     bestPractices: [
       "Use settings.json for configuration",
+    ],
+    settingsBestPractices: [
       "Configure temperature appropriately",
       "Set up multi-directory support",
     ],
@@ -400,6 +417,9 @@ export class ConfigurationAuditEngine {
       // Scan components
       await this.scanComponents(config);
       
+      // Update metadata (must run before checks that depend on it)
+      this.updateMetadata(config);
+      
       // Check validity
       await this.checkValidity(config);
       
@@ -422,9 +442,6 @@ export class ConfigurationAuditEngine {
       if (this.config.checkSynchronization) {
         await this.checkSynchronization(config);
       }
-      
-      // Update metadata
-      this.updateMetadata(config);
       
       // Print summary for this config
       this.printConfigSummary(config);
@@ -479,19 +496,21 @@ export class ConfigurationAuditEngine {
   private detectComponentType(filename: string, path: string): string {
     const lower = filename.toLowerCase();
     
+    // Check for specific filenames first (before generic includes)
+    if (filename === "AGENTS.md" || filename === "CLAUDE.md") return "documentation";
+    
     if (lower.includes("skill")) return "skill";
     if (lower.includes("command")) return "command";
     if (lower.includes("rule") || filename.endsWith(".mdc")) return "rule";
     if (lower.includes("workflow")) return "workflow";
     if (lower.includes("agent")) return "agent";
     if (lower.includes("config")) return "config";
-    if (filename === "AGENTS.md") return "documentation";
     
     return "unknown";
   }
 
   private async checkValidity(config: AuditedConfig): Promise<void> {
-    const knowledge = AGENT_KNOWLEDGE_BASE[config.agent as keyof typeof AGENT_KNOWLEDGE_BASE];
+    const knowledge = AGENT_KNOWLEDGE_BASE[config.agent as keyof typeof AGENT_KNOWLEDGE_BASE] as AgentKnowledge | undefined;
     if (!knowledge) return;
     
     let score = 100;
@@ -500,46 +519,113 @@ export class ConfigurationAuditEngine {
     const deprecatedFeatures: string[] = [];
     const missingFeatures: string[] = [];
     
-    for (const component of config.components) {
+    // Only validate structured components (skills, commands, rules, workflows, docs)
+    const structuredTypes = ["skill", "command", "rule", "workflow", "documentation"];
+    const componentsToValidate = config.components.filter(c => structuredTypes.includes(c.type));
+    
+    // Track component scores separately to prevent massive penalty accumulation
+    const componentScores = new Map<string, number>();
+    
+    for (const component of componentsToValidate) {
       try {
         const content = readFileSync(component.path, "utf-8");
+        let componentPenalty = 0;
+        const maxPenaltyPerComponent = 30; // Cap penalties per component
         
-        // Check for anti-patterns
+        // Check for anti-patterns (only on structured components)
         for (const antiPattern of knowledge.antiPatterns) {
+          if (componentPenalty >= maxPenaltyPerComponent) break;
+          // Skip "No frontmatter in .mdc files" for non-.mdc files
+          if (antiPattern.includes(".mdc") && component.type !== "rule") continue;
           if (this.matchesAntiPattern(content, antiPattern)) {
             warnings.push(`${component.name}: ${antiPattern}`);
-            score -= 5;
+            componentPenalty += 5;
           }
         }
         
         // Check for deprecated features
         for (const deprecated of knowledge.deprecatedFeatures) {
-          const firstWord = deprecated.toLowerCase().split(" ")[0];
-          if (firstWord && content.toLowerCase().includes(firstWord)) {
+          if (componentPenalty >= maxPenaltyPerComponent) break;
+          if (!deprecated) continue;
+          // Extract the actual deprecated pattern (before any parenthetical explanation)
+          const actualPattern = deprecated.split("(")[0]?.trim().toLowerCase() ?? "";
+          // Use word boundary matching to avoid false positives
+          if (!actualPattern) continue;
+          const patternRegex = new RegExp(`\\b${actualPattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+          if (patternRegex.test(content)) {
             deprecatedFeatures.push(`${component.name}: ${deprecated}`);
-            score -= 10;
+            componentPenalty += 10;
           }
         }
         
-        // Check for best practices
+        // Check for best practices (limit to first 2 missing)
+        let missingPracticeCount = 0;
+        
+        // For .mdc files, check frontmatter content instead of body for best practices
+        // But skip "Use .mdc files with YAML frontmatter" since that's verified by the frontmatter check above
+        let contentToCheck = content;
+        const frontmatterMatch = content.match(/---\n([\s\S]*?)\n---/);
+        if (component.type === "rule" && frontmatterMatch && frontmatterMatch[1]) {
+          contentToCheck = frontmatterMatch[1]; // Check frontmatter content
+        }
+        
         for (const practice of knowledge.bestPractices) {
-          if (!this.hasBestPractice(content, practice)) {
+          if (componentPenalty >= maxPenaltyPerComponent || missingPracticeCount >= 2) break;
+          // Skip metadata-related best practices that are verified by other checks
+          if (practice.toLowerCase().includes("yaml frontmatter") && component.type === "rule") continue;
+          if (!this.hasBestPractice(contentToCheck, practice)) {
             missingFeatures.push(`${component.name}: Missing ${practice}`);
-            score -= 3;
+            componentPenalty += 3;
+            missingPracticeCount++;
           }
         }
         
         // Check YAML frontmatter
-        if (!content.includes("---")) {
-          if (component.type !== "config") {
-            warnings.push(`${component.name}: Missing YAML frontmatter`);
-            score -= 10;
-          }
+        if (componentPenalty < maxPenaltyPerComponent && !content.includes("---")) {
+          warnings.push(`${component.name}: Missing YAML frontmatter`);
+          componentPenalty += 10;
         }
+        
+        // Cap the penalty and apply to total score
+        componentScores.set(component.name, Math.min(componentPenalty, maxPenaltyPerComponent));
         
       } catch (e) {
         errors.push(`Failed to read ${component.path}: ${e}`);
         score -= 20;
+      }
+    }
+    
+    // Apply accumulated penalties (capped)
+    const totalPenalty = Array.from(componentScores.values()).reduce((sum, p) => sum + p, 0);
+    score -= Math.min(totalPenalty, 100); // Cap total penalty at 100
+    
+    // Check directory structure best practices
+    if (knowledge.directoryBestPractices && knowledge.directoryBestPractices.length > 0) {
+      const subdirs = config.components
+        .filter(c => c.type === "documentation")
+        .map(c => dirname(c.path).split("/").pop())
+        .filter(Boolean);
+      
+      const dirPractices = knowledge.directoryBestPractices;
+      const hasOrganizedDirs = subdirs.some(d => 
+        dirPractices.some(practice => {
+          const firstWord = practice.split(" ")[0]?.toLowerCase() ?? "";
+          return firstWord && d?.toLowerCase().includes(firstWord);
+        })
+      );
+      
+      if (!hasOrganizedDirs) {
+        score -= Math.min(knowledge.directoryBestPractices.length * 5, 20);
+      }
+    }
+    
+    // Check settings-based best practices (Gemini, Codex, etc.)
+    if (knowledge.settingsBestPractices && knowledge.settingsBestPractices.length > 0) {
+      const hasSettings = config.components.some(c => 
+        c.name.toLowerCase().includes("settings") || c.name === "config"
+      );
+      if (!hasSettings) {
+        score -= Math.min(knowledge.settingsBestPractices.length * 5, 15);
       }
     }
     

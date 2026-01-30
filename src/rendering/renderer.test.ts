@@ -213,14 +213,17 @@ describe("WindsurfRenderer", () => {
       expect(result.content).toContain("description:");
     });
 
-    test("includes auto_execution_mode for auto activation", () => {
+    test("reports loss for auto activation (Windsurf doesn't support auto-execution)", () => {
       const spec = createTestSpec({
         activation: { mode: "auto", safetyLevel: "safe" },
+        sourceAgent: { id: "claude", detectedAt: new Date().toISOString() },
       });
       const result = renderer.render(spec);
 
       expect(result.success).toBe(true);
-      expect(result.content).toContain("auto_execution_mode:");
+      expect(result.content).not.toContain("auto_execution_mode:");
+      expect(result.report?.losses).toBeDefined();
+      expect(result.report?.losses?.some(l => l.category === "activation")).toBe(true);
     });
 
     test("preserves body content", () => {
