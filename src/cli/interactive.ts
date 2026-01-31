@@ -238,7 +238,7 @@ async function interactiveConvert(rl: ReturnType<typeof createInterface>, filePa
     }
     
     const renderResult = renderComponent(parseResult.spec, targetAgent, {
-      includeComments: true,
+      includeComments: false,
       validateOutput: true,
     });
     

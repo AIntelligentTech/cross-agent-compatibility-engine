@@ -16,7 +16,7 @@ This document captures research findings on conversion parity gaps between Claud
 | Claude → Cursor | 96% | Context fork, tool restriction enforcement | Prefer Skills (+ optional Commands) |
 | Claude → OpenCode | 98% | Minor metadata | Native support |
 | Claude → Codex | 92% | Context fork, no native skills | MCP mapping |
-| Claude → Gemini | 88% | YAML frontmatter, skill structure | Flatten to prose |
+| Claude → Gemini | 92% | Fork context, hook execution | YAML Frontmatter mapping |
 
 ---
 
@@ -415,7 +415,46 @@ CACE's `--strategy=dual-output` generates BOTH artifacts:
 
 ---
 
-## 6. Feature Loss Summary Matrix
+## 6. Gemini CLI Tool Mapping
+
+### Gemini Model
+
+Gemini CLI uses boolean flags and a `tools` array in YAML frontmatter:
+
+```yaml
+---
+name: code-executor
+description: Execute and analyze code
+code_execution: true
+google_search: true
+tools:
+  - file_read
+  - file_write
+---
+```
+
+### Conversion Mapping
+
+CACE maps Claude tools to Gemini equivalents:
+
+| Claude Tool | Gemini Mapping |
+|-------------|----------------|
+| `Bash`, `Shell` | `code_execution: true` |
+| `Search`, `WebSearch` | `google_search: true` |
+| `Read`, `Edit` | `tools: ["file_read", "file_write"]` |
+
+### Parity Analysis
+
+| Feature | Claude | Gemini |
+|---------|--------|--------|
+| Tool whitelist | ✅ `allowed-tools` | ✅ `tools` + flags |
+| Code execution | ✅ `Bash` tool | ✅ `code_execution` |
+| Web access | ✅ `Search` tool | ✅ `google_search` |
+| Frontmatter | ✅ Full | ✅ Full |
+
+---
+
+## 7. Feature Loss Summary Matrix
 
 ### Critical Gaps (No Equivalent)
 
@@ -425,7 +464,7 @@ CACE's `--strategy=dual-output` generates BOTH artifacts:
 | Tool restrictions | ✅ allowed-tools | ❌ | ❌ | ⚠️ permissions | ⚠️ MCP | ❌ |
 | Agent delegation | ✅ agent: | ❌ | ❌ | ✅ Yes | ❌ | ❌ |
 | Hook execution | ✅ PreToolUse | ❌ | ✅ | ❌ | ❌ | ❌ |
-| YAML frontmatter | ✅ Full | ⚠️ Partial | ✅ (Skills) | ✅ Full | ✅ Full | ❌ None |
+| YAML frontmatter | ✅ Full | ⚠️ Partial | ✅ (Skills) | ✅ Full | ✅ Full | ✅ Full |
 
 ### Partial Equivalents
 

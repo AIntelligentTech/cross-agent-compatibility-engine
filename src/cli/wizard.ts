@@ -1027,7 +1027,7 @@ async function executeConversion(
     
     // Render
     const renderResult = renderComponent(parseResult.spec, job.targetAgent, {
-      includeComments: true,
+      includeComments: false,
       validateOutput,
     });
     

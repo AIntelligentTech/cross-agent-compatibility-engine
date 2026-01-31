@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.5] - 2026-01-31
+
+### 🐛 Bug Fixes
+
+- **Disable conversion header comments by default**: Changed `includeComments` default from `true` to `false` in CLI tools.
+  - Removes "Converted from..." and "Original:" HTML comments from generated files.
+  - Ensures cleaner output that matches native agent file formats.
+  - Fixes compatibility issues with strict parsers in downstream tools.
+
+## [2.5.4] - 2026-01-30
+
+### 🚀 Gemini Support Improvements
+
+- **Fixed Gemini tool mapping**: `GeminiRenderer` now correctly maps tools from `execution.allowedTools` and `capabilities`.
+  - `Bash`/`Shell` tools now enable `code_execution: true`.
+  - `Search`/`WebSearch` tools now enable `google_search: true`.
+  - Additional tools are mapped to the Gemini `tools` frontmatter array.
+- **Updated Compatibility Matrix**: Corrected Gemini parity information in `docs/AGENT_PARITY_KNOWLEDGE.md`.
+  - Documented that Gemini CLI supports full YAML frontmatter for skills.
+  - Improved fidelity score for Claude → Gemini conversion to 92%.
+
 ## [2.5.3] - 2026-01-30
 
 ### 🛡️ Enhanced Validation

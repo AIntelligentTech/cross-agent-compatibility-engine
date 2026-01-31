@@ -71,14 +71,37 @@ export class GeminiRenderer extends BaseRenderer {
     }
 
     // Map built-in tools
-    if (spec.metadata?.codeExecution || spec.metadata?.tools?.includes("code_execution")) {
+    const allowedTools = spec.execution.allowedTools || [];
+    const hasCodeExecution = 
+      spec.metadata?.codeExecution || 
+      spec.metadata?.tools?.includes("code_execution") ||
+      allowedTools.some(t => ["Bash", "Shell", "Terminal", "code_execution"].includes(t)) ||
+      spec.capabilities.needsShell;
+
+    if (hasCodeExecution) {
       frontmatter.code_execution = true;
       preservedSemantics.push("Code execution enabled");
     }
 
-    if (spec.metadata?.googleSearch || spec.metadata?.tools?.includes("google_search")) {
+    const hasGoogleSearch = 
+      spec.metadata?.googleSearch || 
+      spec.metadata?.tools?.includes("google_search") ||
+      allowedTools.some(t => ["Search", "GoogleSearch", "google_search", "WebSearch"].includes(t)) ||
+      spec.capabilities.needsNetwork || 
+      spec.capabilities.needsBrowser;
+
+    if (hasGoogleSearch) {
       frontmatter.google_search = true;
       preservedSemantics.push("Google search enabled");
+    }
+
+    // Map other tools to tools array
+    const otherTools = allowedTools.filter(t => 
+      !["Bash", "Shell", "Terminal", "code_execution", "Search", "GoogleSearch", "google_search", "WebSearch"].includes(t)
+    );
+    if (otherTools.length > 0) {
+      frontmatter.tools = otherTools;
+      preservedSemantics.push(`Mapped ${otherTools.length} additional tools`);
     }
 
     // Map include directories
