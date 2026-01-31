@@ -1,4 +1,4 @@
-# CACE (Cross-Agent Compatibility Engine) v2.3.0
+# CACE (Cross-Agent Compatibility Engine) v2.5.5
 
 [![CI](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/cace-cli.svg)](https://www.npmjs.com/package/cace-cli)
@@ -6,9 +6,11 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](./TEST_REPORT_FINAL.md)
 
-**🚀 The most user-friendly cross-agent compatibility tool - now with Multi-Select Wizard & Directory Conversion!**
+**🚀 Version-aware cross-agent compatibility tool with automatic agent detection!**
 
-Convert and validate AI agent components between **6 major agents**: Claude Code, OpenCode, Cursor, Windsurf, **OpenAI Codex**, and **Google Gemini** with LLM-assisted optimization and beautiful visual outputs.
+Convert and validate AI agent components between **6 major agents**: Claude Code, OpenCode, Cursor, Windsurf, **OpenAI Codex**, and **Google Gemini** with version compatibility knowledge and beautiful visual outputs.
+
+**Now integrated with [Cofounder Core v8.6+](https://github.com/AIntelligentTech/cofounder-core)** for automatic cross-agent scaffolding generation.
 
 ---
 
