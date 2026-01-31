@@ -1,6 +1,6 @@
 {
   "name": "@AIntelligentTech/cace-cli",
-  "version": "2.5.6",
+  "version": "2.5.7",
   "description": "Cross-Agent Compatibility Engine - Convert and validate AI agent components between Claude, Cursor, Windsurf, OpenCode, Codex, and Gemini",
   "type": "module",
   "main": "dist/index.js",
