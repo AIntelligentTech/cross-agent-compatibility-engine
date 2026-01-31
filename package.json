@@ -1,5 +1,5 @@
 {
-  "name": "cace-cli",
+  "name": "@AIntelligentTech/cace-cli",
   "version": "2.5.6",
   "description": "Cross-Agent Compatibility Engine - Convert and validate AI agent components between Claude, Cursor, Windsurf, OpenCode, Codex, and Gemini",
   "type": "module",
@@ -7,6 +7,9 @@
   "types": "dist/index.d.ts",
   "bin": {
     "cace": "dist/cli/index.js"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/AIntelligentTech"
   },
   "scripts": {
     "build": "tsc",
