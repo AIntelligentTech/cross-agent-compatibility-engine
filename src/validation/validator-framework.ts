@@ -31,6 +31,8 @@ export interface ValidatorOptions {
   version?: string;
   allowFutureFeatures?: boolean;
   skipDeprecatedWarnings?: boolean;
+  /** Enable SKILL-E/W/I structural standards validation. Default: false for backward compat. */
+  enforceStructuralStandards?: boolean;
 }
 
 export abstract class BaseValidator {

@@ -267,6 +267,243 @@ export class ClaudeValidator extends BaseValidator {
         );
       }
     }
+
+    // === Structural Standards Validation (SKILL-E/W/I codes) ===
+    // Based on business-os/docs/standards/SKILL-STANDARDS.md
+    // Enabled via options.enforceStructuralStandards
+
+    if (!options?.enforceStructuralStandards) return;
+
+    // SKILL-E003: Missing scope_constraints
+    if (!body.includes('<scope_constraints>')) {
+      issues.push(
+        this.createIssue(
+          'SKILL-E003',
+          'Skill must have a <scope_constraints> section defining operational boundaries',
+          'error',
+          undefined,
+          'Add <scope_constraints>\\n...boundaries, modes, defaults...\\n</scope_constraints> after the title'
+        )
+      );
+    }
+
+    // SKILL-E004: Missing context
+    if (!body.includes('<context>')) {
+      issues.push(
+        this.createIssue(
+          'SKILL-E004',
+          'Skill must have a <context> section listing dependencies and prerequisites',
+          'error',
+          undefined,
+          'Add <context>\\n...dependencies, DB tables, MCP servers...\\n</context>'
+        )
+      );
+    }
+
+    // SKILL-E005: Missing instructions
+    if (!body.includes('<instructions>')) {
+      issues.push(
+        this.createIssue(
+          'SKILL-E005',
+          'Skill must have an <instructions> section with inputs, outputs, and steps',
+          'error',
+          undefined,
+          'Wrap your workflow in <instructions>\\n## Inputs\\n...\\n## Steps\\n...\\n</instructions>'
+        )
+      );
+    }
+
+    // SKILL-E006: Tag order violation
+    if (body.includes('<scope_constraints>') && body.includes('<context>') && body.includes('<instructions>')) {
+      const scopeIdx = body.indexOf('<scope_constraints>');
+      const contextIdx = body.indexOf('<context>');
+      const instructionsIdx = body.indexOf('<instructions>');
+
+      if (scopeIdx > contextIdx || contextIdx > instructionsIdx) {
+        issues.push(
+          this.createIssue(
+            'SKILL-E006',
+            'XML tags must appear in order: <scope_constraints>, <context>, <instructions>, <output_format>',
+            'error',
+            undefined,
+            'Reorder sections: scope_constraints → context → instructions → output_format'
+          )
+        );
+      }
+
+      // Check output_format order if present
+      if (body.includes('<output_format>')) {
+        const outputIdx = body.indexOf('<output_format>');
+        if (outputIdx < instructionsIdx) {
+          issues.push(
+            this.createIssue(
+              'SKILL-E006',
+              '<output_format> must appear after <instructions>',
+              'error',
+              undefined,
+              'Move <output_format> section after </instructions>'
+            )
+          );
+        }
+      }
+    }
+
+    // SKILL-E007: Missing inputs inside instructions
+    if (body.includes('<instructions>') && body.includes('</instructions>')) {
+      const instructionsContent = body.substring(
+        body.indexOf('<instructions>') + '<instructions>'.length,
+        body.indexOf('</instructions>')
+      );
+      if (!instructionsContent.includes('## Inputs') && !instructionsContent.includes('## Input')) {
+        issues.push(
+          this.createIssue(
+            'SKILL-E007',
+            'Instructions block must contain an ## Inputs section',
+            'error',
+            undefined,
+            'Add ## Inputs section inside <instructions>'
+          )
+        );
+      }
+    }
+
+    // SKILL-E008: Missing steps inside instructions
+    if (body.includes('<instructions>') && body.includes('</instructions>')) {
+      const instructionsContent = body.substring(
+        body.indexOf('<instructions>') + '<instructions>'.length,
+        body.indexOf('</instructions>')
+      );
+      if (!instructionsContent.includes('## Steps') && !instructionsContent.includes('### Step')) {
+        issues.push(
+          this.createIssue(
+            'SKILL-E008',
+            'Instructions block must contain workflow steps (## Steps or ### Step N)',
+            'error',
+            undefined,
+            'Add ## Steps with ### Step 1, ### Step 2, etc. inside <instructions>'
+          )
+        );
+      }
+    }
+
+    // SKILL-W001: Missing output_format for artifact-producing skills
+    if (!body.includes('<output_format>')) {
+      // Heuristic: if the skill mentions writing files or producing reports
+      const producesArtifacts = /write.*file|workspace\/|\.md\b|report|briefing|frontmatter/i.test(body);
+      if (producesArtifacts) {
+        warnings.push(
+          this.createIssue(
+            'SKILL-W001',
+            'Skill appears to produce file artifacts but has no <output_format> section',
+            'warning',
+            undefined,
+            'Add <output_format> section with report template and progressive disclosure levels'
+          )
+        );
+      }
+    }
+
+    // SKILL-W002: Missing error handling
+    if (body.includes('<instructions>') && body.includes('</instructions>')) {
+      const instructionsContent = body.substring(
+        body.indexOf('<instructions>') + '<instructions>'.length,
+        body.indexOf('</instructions>')
+      );
+      if (!instructionsContent.toLowerCase().includes('error handling') && !instructionsContent.toLowerCase().includes('error hand')) {
+        warnings.push(
+          this.createIssue(
+            'SKILL-W002',
+            'Instructions should include an error handling section',
+            'warning',
+            undefined,
+            'Add ## Error Handling section inside <instructions>'
+          )
+        );
+      }
+    }
+
+    // SKILL-W003: No code examples
+    if (body.includes('<instructions>') && !body.includes('```')) {
+      warnings.push(
+        this.createIssue(
+          'SKILL-W003',
+          'Instructions lack executable code examples',
+          'warning',
+          undefined,
+          'Add code blocks (```bash, ```sql, etc.) with example commands or queries'
+        )
+      );
+    }
+
+    // SKILL-W004: Missing when_to_use
+    if (!(fm as Record<string, unknown>)['when_to_use']) {
+      warnings.push(
+        this.createIssue(
+          'SKILL-W004',
+          'Skill should have a "when_to_use" field for activation guidance',
+          'warning',
+          'when_to_use',
+          'Add when_to_use: "Use when..." in frontmatter'
+        )
+      );
+    }
+
+    // SKILL-W005: Missing argument-hint for user-invocable skills
+    if (fm['user-invocable'] && !fm['argument-hint']) {
+      warnings.push(
+        this.createIssue(
+          'SKILL-W005',
+          'User-invocable skill should have an "argument-hint" for usage guidance',
+          'warning',
+          'argument-hint',
+          'Add argument-hint: "[args description]" in frontmatter'
+        )
+      );
+    }
+
+    // SKILL-I001: Progressive disclosure detected
+    if (/L[0-3]/i.test(body) && /disclosure/i.test(body)) {
+      info.push(
+        this.createIssue(
+          'SKILL-I001',
+          'Progressive disclosure (L0-L3) levels detected',
+          'info'
+        )
+      );
+    }
+
+    // SKILL-I002: MCP integration detected
+    if (body.includes('mcp-cli') || body.includes('mcp_') || body.includes('google-workspace')) {
+      info.push(
+        this.createIssue(
+          'SKILL-I002',
+          'MCP server integration detected',
+          'info'
+        )
+      );
+    }
+
+    // SKILL-I003: Agent delegation detected
+    if (/tier-[12]/i.test(body) || /agent.*scanner/i.test(body)) {
+      info.push(
+        this.createIssue(
+          'SKILL-I003',
+          'Tier-1/2 agent delegation detected',
+          'info'
+        )
+      );
+    }
+
+    // SKILL-I004: Database queries detected
+    if (body.includes('sqlite3') || body.includes('index.db')) {
+      info.push(
+        this.createIssue(
+          'SKILL-I004',
+          'SQLite database queries detected',
+          'info'
+        )
+      );
+    }
   }
 
   private validateRule(

@@ -136,6 +136,426 @@ Body content.
   });
 });
 
+describe("Claude Validator - Structural Standards (SKILL-E/W/I)", () => {
+  const validator = new ClaudeValidator();
+
+  // Helper: a fully compliant skill
+  const compliantSkill = `---
+name: test-skill
+description: A compliant test skill
+user-invocable: true
+argument-hint: "[query]"
+when_to_use: >
+  Use when testing structural validation.
+model: inherit
+created: 2026-01-31
+updated: 2026-02-01
+---
+
+# Test Skill
+
+A compliant skill for testing structural validation.
+
+<scope_constraints>
+**Mode:** default only.
+**Output:** In-conversation results.
+</scope_constraints>
+
+<context>
+- SQLite index at ~/.cofounder/index.db
+- Vault root from environment
+</context>
+
+<instructions>
+
+## Inputs
+
+- query: Search term (REQUIRED)
+
+## Steps
+
+### Step 1: Parse Query
+
+Parse the user query:
+
+\`\`\`bash
+echo "parsing query"
+\`\`\`
+
+### Step 2: Execute Search
+
+Run the search against the index.
+
+## Error Handling
+
+- If index missing: suggest reindex
+- If no results: suggest alternatives
+
+</instructions>
+
+<output_format>
+
+## Report Template
+
+Results displayed in-conversation as markdown list.
+
+</output_format>
+`;
+
+  it("should pass a fully compliant skill", () => {
+    const result = validator.validate(compliantSkill, "skill", { enforceStructuralStandards: true });
+    expect(result.valid).toBe(true);
+    const structuralErrors = result.issues.filter((i) => i.code.startsWith("SKILL-"));
+    expect(structuralErrors).toHaveLength(0);
+  });
+
+  it("SKILL-E003: should error on missing scope_constraints", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<context>
+deps
+</context>
+
+<instructions>
+
+## Inputs
+
+- x: test
+
+## Steps
+
+### Step 1: Do thing
+
+\`\`\`bash
+echo hi
+\`\`\`
+
+## Error Handling
+
+Handle errors.
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.issues.some((i) => i.code === "SKILL-E003")).toBe(true);
+  });
+
+  it("SKILL-E004: should error on missing context", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<instructions>
+
+## Inputs
+
+- x: test
+
+## Steps
+
+### Step 1: Do thing
+
+\`\`\`bash
+echo hi
+\`\`\`
+
+## Error Handling
+
+Handle errors.
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.issues.some((i) => i.code === "SKILL-E004")).toBe(true);
+  });
+
+  it("SKILL-E005: should error on missing instructions", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<context>
+deps
+</context>
+
+Just some prose without instructions tags.
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.issues.some((i) => i.code === "SKILL-E005")).toBe(true);
+  });
+
+  it("SKILL-E006: should error on wrong tag order", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<context>
+deps
+</context>
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<instructions>
+
+## Inputs
+
+- x: test
+
+## Steps
+
+### Step 1: Do
+
+\`\`\`bash
+echo hi
+\`\`\`
+
+## Error Handling
+
+Handle errors.
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.issues.some((i) => i.code === "SKILL-E006")).toBe(true);
+  });
+
+  it("SKILL-E007: should error on missing Inputs in instructions", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<context>
+deps
+</context>
+
+<instructions>
+
+## Steps
+
+### Step 1: Do
+
+\`\`\`bash
+echo hi
+\`\`\`
+
+## Error Handling
+
+Handle errors.
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.issues.some((i) => i.code === "SKILL-E007")).toBe(true);
+  });
+
+  it("SKILL-E008: should error on missing Steps in instructions", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<context>
+deps
+</context>
+
+<instructions>
+
+## Inputs
+
+- x: test
+
+Just prose, no steps.
+
+## Error Handling
+
+Handle errors.
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.issues.some((i) => i.code === "SKILL-E008")).toBe(true);
+  });
+
+  it("SKILL-W002: should warn on missing error handling", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<context>
+deps
+</context>
+
+<instructions>
+
+## Inputs
+
+- x: test
+
+## Steps
+
+### Step 1: Do
+
+\`\`\`bash
+echo hi
+\`\`\`
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.warnings.some((w) => w.code === "SKILL-W002")).toBe(true);
+  });
+
+  it("SKILL-W003: should warn on missing code examples", () => {
+    const content = `---
+name: test
+description: test
+---
+
+# Test
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<context>
+deps
+</context>
+
+<instructions>
+
+## Inputs
+
+- x: test
+
+## Steps
+
+### Step 1: Do the thing
+
+Do it manually without code.
+
+## Error Handling
+
+Handle errors somehow.
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.warnings.some((w) => w.code === "SKILL-W003")).toBe(true);
+  });
+
+  it("SKILL-W005: should warn on user-invocable without argument-hint", () => {
+    const content = `---
+name: test
+description: test
+user-invocable: true
+---
+
+# Test
+
+<scope_constraints>
+bounds
+</scope_constraints>
+
+<context>
+deps
+</context>
+
+<instructions>
+
+## Inputs
+
+- x: test
+
+## Steps
+
+### Step 1: Do
+
+\`\`\`bash
+echo hi
+\`\`\`
+
+## Error Handling
+
+Handle errors.
+
+</instructions>
+`;
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.warnings.some((w) => w.code === "SKILL-W005")).toBe(true);
+  });
+
+  it("SKILL-I001: should detect progressive disclosure", () => {
+    const content = compliantSkill.replace(
+      "Results displayed in-conversation",
+      "Progressive disclosure levels:\n- L0: frontmatter only\n- L1: summary\n- L2: full"
+    );
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.info.some((i) => i.code === "SKILL-I001")).toBe(true);
+  });
+
+  it("SKILL-I002: should detect MCP integration", () => {
+    const content = compliantSkill.replace(
+      'echo "parsing query"',
+      'mcp-cli call google-workspace/get_events \'{}\''
+    );
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.info.some((i) => i.code === "SKILL-I002")).toBe(true);
+  });
+
+  it("SKILL-I004: should detect SQLite queries", () => {
+    const content = compliantSkill.replace(
+      'echo "parsing query"',
+      'sqlite3 -json .cofounder/index.db "SELECT * FROM files"'
+    );
+    const result = validator.validate(content, "skill", { enforceStructuralStandards: true });
+    expect(result.info.some((i) => i.code === "SKILL-I004")).toBe(true);
+  });
+});
+
 describe("Cursor Validator", () => {
   const validator = new CursorValidator();
 

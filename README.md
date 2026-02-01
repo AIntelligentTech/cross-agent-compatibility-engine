@@ -10,7 +10,7 @@
 
 Convert and validate AI agent components between **6 major agents**: Claude Code, OpenCode, Cursor, Windsurf, **OpenAI Codex**, and **Google Gemini** with version compatibility knowledge and beautiful visual outputs.
 
-**Now integrated with [Cofounder Core v8.6+](https://github.com/AIntelligentTech/cofounder-core)** for automatic cross-agent scaffolding generation.
+**Now integrated with [Business OS v9.6+](https://github.com/AIntelligentTech/business-os)** for automatic cross-agent scaffolding generation.
 
 ---
 
