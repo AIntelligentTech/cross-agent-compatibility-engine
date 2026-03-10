@@ -277,6 +277,134 @@ describe("WindsurfRenderer", () => {
           0 + (result.report?.warnings.length || 0),
       ).toBeGreaterThanOrEqual(0);
     });
+
+    // Fix 1: Rule trigger frontmatter tests
+    test("rule with alwaysApply:true emits trigger:always_on", () => {
+      const spec = createTestSpec({
+        componentType: "rule",
+        activation: { mode: "auto", safetyLevel: "safe" },
+      }) as ComponentSpec & { ruleActivation?: { alwaysApply: boolean; agentDecided: boolean; scope: string } };
+      (spec as Record<string, unknown>)["ruleActivation"] = {
+        alwaysApply: true,
+        agentDecided: false,
+        scope: "project",
+      };
+      const result = renderer.render(spec as ComponentSpec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("trigger: always_on");
+      expect(result.content).not.toContain("globs:");
+    });
+
+    test("rule with glob patterns emits trigger:glob and comma-separated globs string", () => {
+      const spec = createTestSpec({
+        componentType: "rule",
+        activation: { mode: "auto", safetyLevel: "safe" },
+      });
+      (spec as Record<string, unknown>)["ruleActivation"] = {
+        globs: ["api/**", "routes/**"],
+        alwaysApply: false,
+        agentDecided: false,
+        scope: "project",
+      };
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("trigger: glob");
+      expect(result.content).toContain("globs: api/**,routes/**");
+      // Must be a comma-separated string, not a YAML list
+      expect(result.content).not.toMatch(/globs:\s*\n\s*-/);
+    });
+
+    test("rule with activation.triggers glob pattern emits trigger:glob", () => {
+      const spec = createTestSpec({
+        componentType: "rule",
+        activation: {
+          mode: "auto",
+          safetyLevel: "safe",
+          triggers: [
+            { type: "glob", pattern: "middleware/**" },
+          ],
+        },
+      });
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("trigger: glob");
+      expect(result.content).toContain("globs: middleware/**");
+    });
+
+    test("rule with agentDecided:true emits trigger:model_decision with a loss", () => {
+      const spec = createTestSpec({
+        componentType: "rule",
+        activation: { mode: "auto", safetyLevel: "safe" },
+      });
+      (spec as Record<string, unknown>)["ruleActivation"] = {
+        alwaysApply: false,
+        agentDecided: true,
+        scope: "project",
+      };
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("trigger: model_decision");
+      // Must surface a loss about probabilistic degradation
+      const agentDecidedLoss = result.report?.losses.find(
+        (l) => l.sourceField === "ruleActivation.agentDecided",
+      );
+      expect(agentDecidedLoss).toBeDefined();
+      expect(agentDecidedLoss?.severity).toBe("warning");
+    });
+
+    test("rule with no ruleActivation defaults to trigger:always_on", () => {
+      const spec = createTestSpec({
+        componentType: "rule",
+        activation: { mode: "auto", safetyLevel: "safe" },
+      });
+      // No ruleActivation set
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("trigger: always_on");
+    });
+
+    // Fix 2: Skill/workflow unsupported field warnings
+    test("skill with allowedTools emits TOOL_RESTRICTION_LOST warning", () => {
+      const spec = createTestSpec({
+        sourceAgent: { id: "claude", detectedAt: new Date().toISOString() },
+        execution: {
+          context: "main",
+          allowedTools: ["Bash(git*)", "Read"],
+        },
+      });
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      const warning = result.report?.warnings.find(
+        (w) => w.code === "TOOL_RESTRICTION_LOST",
+      );
+      expect(warning).toBeDefined();
+      expect(warning?.field).toBe("execution.allowedTools");
+    });
+
+    test("skill with model in metadata emits MODEL_SELECTION_LOST warning", () => {
+      const spec = createTestSpec({
+        sourceAgent: { id: "claude", detectedAt: new Date().toISOString() },
+        metadata: {
+          originalFormat: "test",
+          updatedAt: new Date().toISOString(),
+          model: "claude-opus-4-5",
+        },
+      });
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      const warning = result.report?.warnings.find(
+        (w) => w.code === "MODEL_SELECTION_LOST",
+      );
+      expect(warning).toBeDefined();
+      expect(warning?.field).toBe("metadata.model");
+    });
   });
 
   describe("getTargetFilename", () => {
@@ -295,6 +423,13 @@ describe("WindsurfRenderer", () => {
       const dir = renderer.getTargetDirectory(spec);
 
       expect(dir).toBe(".windsurf/workflows");
+    });
+
+    test("returns Windsurf rules directory for rule type", () => {
+      const spec = createTestSpec({ componentType: "rule" });
+      const dir = renderer.getTargetDirectory(spec);
+
+      expect(dir).toBe(".windsurf/rules");
     });
   });
 });

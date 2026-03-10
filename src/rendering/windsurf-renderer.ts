@@ -18,8 +18,14 @@ import type {
   ConversionReport,
   ConversionLoss,
   ConversionWarning,
+  RuleActivation,
 } from "../core/types.js";
 import { BaseRenderer, type RenderOptions } from "./renderer-interface.js";
+
+// Extended spec shape that includes optional memory/rule/hook fields
+interface ExtendedComponentSpec extends ComponentSpec {
+  ruleActivation?: RuleActivation;
+}
 
 export class WindsurfRenderer extends BaseRenderer {
   readonly agentId = "windsurf" as const;
@@ -36,10 +42,52 @@ export class WindsurfRenderer extends BaseRenderer {
     const preservedSemantics: string[] = [];
     const suggestions: string[] = [];
 
+    // Cast to extended spec to access optional rule/memory fields
+    const extSpec = spec as ExtendedComponentSpec;
+
     // Build frontmatter
     const frontmatter: Record<string, unknown> = {
       description: spec.intent.summary,
     };
+
+    // Fix 1: Rules must emit trigger frontmatter (P0)
+    if (spec.componentType === "rule") {
+      // Collect glob patterns from ruleActivation or activation.triggers
+      const globPatterns: string[] = [];
+      if (extSpec.ruleActivation?.globs && extSpec.ruleActivation.globs.length > 0) {
+        globPatterns.push(...extSpec.ruleActivation.globs);
+      }
+      if (extSpec.ruleActivation?.paths && extSpec.ruleActivation.paths.length > 0) {
+        globPatterns.push(...extSpec.ruleActivation.paths);
+      }
+      if (spec.activation.triggers) {
+        for (const trigger of spec.activation.triggers) {
+          if (trigger.type === "glob" && trigger.pattern) {
+            globPatterns.push(trigger.pattern);
+          }
+        }
+      }
+
+      if (globPatterns.length > 0) {
+        // Windsurf requires comma-separated string, not array
+        frontmatter["trigger"] = "glob";
+        frontmatter["globs"] = globPatterns.join(",");
+      } else if (extSpec.ruleActivation?.alwaysApply === true) {
+        frontmatter["trigger"] = "always_on";
+      } else if (extSpec.ruleActivation?.agentDecided === true) {
+        frontmatter["trigger"] = "model_decision";
+        losses.push({
+          category: "activation",
+          severity: "warning",
+          description: "Claude 'agentDecided' rule becomes Windsurf 'model_decision' (probabilistic)",
+          sourceField: "ruleActivation.agentDecided",
+          recommendation: "Windsurf model_decision is probabilistic; Claude's agentDecided is deterministic. Add explicit glob patterns for reliable activation.",
+        });
+      } else {
+        // Default for rules with no ruleActivation
+        frontmatter["trigger"] = "always_on";
+      }
+    }
 
     // CRITICAL: Windsurf workflows do NOT support auto-execution
     // All workflows are slash commands requiring manual user invocation
@@ -127,6 +175,15 @@ export class WindsurfRenderer extends BaseRenderer {
           message:
             "Claude argument hints become prose instructions in Windsurf",
           field: "invocation.argumentHint",
+        });
+      }
+
+      // Fix 2: model selection in metadata — not supported by Windsurf
+      if (spec.metadata && (spec.metadata as Record<string, unknown>)["model"]) {
+        warnings.push({
+          code: "MODEL_SELECTION_LOST",
+          message: "Claude 'model' selection has no Windsurf equivalent",
+          field: "metadata.model",
         });
       }
     }
