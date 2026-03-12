@@ -133,6 +133,38 @@ Body`;
     });
   });
 
+  describe("OpenCode detection", () => {
+    test("should detect OpenCode from filename", () => {
+      const content = `---
+name: opencode-review
+description: Review with OpenCode
+---
+
+Review the repository carefully.
+`;
+      const agent = detectAgent(content, ".opencode/skills/opencode-review.md");
+      expect(agent).toBe("opencode");
+    });
+
+    test("should parse OpenCode skill without explicit --from", () => {
+      const content = `---
+name: opencode-review
+description: Review with OpenCode
+subtask: true
+agent: review-agent
+---
+
+Review the repository carefully.
+`;
+      const result = parseComponent(content, {
+        sourceFile: ".opencode/skills/opencode-review.md",
+      });
+      expect(result.success).toBe(true);
+      expect(result.spec?.sourceAgent?.id).toBe("opencode");
+      expect(result.spec?.execution.context).toBe("fork");
+    });
+  });
+
   describe("Universal AGENTS.md detection", () => {
     test("should detect AGENTS.md by filename", () => {
       const content = `# Project Guidelines
@@ -188,7 +220,7 @@ First step instructions.
 `;
       const result = parseComponent(content);
       expect(result.success).toBe(true);
-      expect(result.spec?.sourceAgent.id).toBe("cursor");
+      expect(result.spec?.sourceAgent?.id).toBe("cursor");
     });
 
     test("should parse AGENTS.md without explicit --from", () => {
@@ -200,7 +232,7 @@ First step instructions.
 `;
       const result = parseComponent(content, { sourceFile: "AGENTS.md" });
       expect(result.success).toBe(true);
-      expect(result.spec?.sourceAgent.id).toBe("universal");
+      expect(result.spec?.sourceAgent?.id).toBe("universal");
     });
   });
 });
@@ -228,5 +260,14 @@ Some instructions.
 `;
     const agent = detectAgent(content, "GEMINI.md");
     expect(agent).toBe("gemini");
+  });
+
+  test("should detect CODEX.md by filename", () => {
+    const content = `# Codex
+
+Some instructions.
+`;
+    const agent = detectAgent(content, "CODEX.md");
+    expect(agent).toBe("codex");
   });
 });

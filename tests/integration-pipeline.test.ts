@@ -9,10 +9,9 @@ import { join } from "path";
 import { getParser } from "../src/parsing/parser-factory.js";
 import { getRenderer } from "../src/rendering/renderer-factory.js";
 import { validate } from "../src/validation/index.js";
-import { ParserFactory } from "../src/parsing/parser-factory.js";
-import { RendererFactory } from "../src/rendering/renderer-factory.js";
 import { ClaudeSourceOptimizer } from "../src/optimization/optimizers/claude-source-optimizer.js";
 import { OptimizerFactory } from "../src/optimization/optimizer-core.js";
+import { getCompatibilityMatrix } from "../src/transformation/capability-mapper.js";
 
 const TEST_DIR = "/tmp/cace-integration-tests";
 
@@ -48,11 +47,16 @@ It performs simple operations.
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
         // Render to Cursor
         const renderer = getRenderer("cursor");
         expect(renderer).toBeDefined();
         
-        const renderResult = renderer!.render(parseResult.spec, {
+        const renderResult = renderer!.render(spec, {
           includeComments: true
         });
         
@@ -84,11 +88,16 @@ DO NOT modify any files.
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
         // Check that validation caught warnings
         expect(parseResult.validation).toBeDefined();
         
         const renderer = getRenderer("cursor");
-        const renderResult = renderer!.render(parseResult.spec, {
+        const renderResult = renderer!.render(spec, {
           includeComments: true
         });
         
@@ -124,7 +133,12 @@ Perform the following steps:
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
-        const renderResult = cursorRenderer!.render(parseResult.spec);
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
+        const renderResult = cursorRenderer!.render(spec);
         expect(renderResult.success).toBe(true);
         
         // Calculate simple fidelity (token overlap)
@@ -157,8 +171,13 @@ This should be auto-invoked.
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
         // Based on disable-model-invocation: false, should be auto-invokable
-        expect(parseResult.spec.activation.mode).toBe("suggested");
+        expect(spec.activation.mode).toBe("suggested");
       }
     });
 
@@ -178,8 +197,13 @@ This should be manually invoked.
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
         // Based on disable-model-invocation: true, should be manual
-        expect(parseResult.spec.activation.mode).toBe("manual");
+        expect(spec.activation.mode).toBe("manual");
       }
     });
   });
@@ -219,13 +243,67 @@ Process the file at $ARGUMENTS.
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
-        const renderResult = renderer!.render(parseResult.spec);
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
+        const renderResult = renderer!.render(spec);
         expect(renderResult.success).toBe(true);
         
         if (renderResult.content) {
           expect(renderResult.content).toContain("$ARGUMENTS");
         }
       }
+    });
+  });
+
+  describe("OpenCode → Claude Conversion", () => {
+    it("should parse OpenCode skills as a supported source agent", () => {
+      const openCodeSkill = `---
+name: opencode-review
+description: Review the repository
+subtask: true
+agent: review-agent
+arguments:
+  - path
+---
+
+Review the repository at $ARGUMENTS and summarize the risks.
+`;
+
+      const parser = getParser("opencode");
+      const renderer = getRenderer("claude");
+
+      expect(parser).toBeDefined();
+      expect(renderer).toBeDefined();
+
+      const parseResult = parser!.parse(openCodeSkill, {
+        sourceFile: ".opencode/skills/opencode-review.md",
+      });
+      expect(parseResult.success).toBe(true);
+
+      if (parseResult.success) {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
+
+        expect(spec.sourceAgent?.id).toBe("opencode");
+        expect(spec.execution.context).toBe("fork");
+
+        const renderResult = renderer!.render(spec);
+        expect(renderResult.success).toBe(true);
+        expect(renderResult.content).toContain("name: opencode-review");
+      }
+    });
+
+    it("should report pairwise compatibility for OpenCode source conversions", () => {
+      const matrix = getCompatibilityMatrix();
+
+      expect(matrix.opencode.claude).toBeGreaterThan(0);
+      expect(matrix.claude.opencode).toBeGreaterThan(0);
     });
   });
 
@@ -248,7 +326,12 @@ Valid body content here.
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
-        const renderResult = renderer!.render(parseResult.spec, {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
+        const renderResult = renderer!.render(spec, {
           validateOutput: true
         });
         
@@ -275,9 +358,14 @@ Body content.
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
         // Render
         const renderer = getRenderer("cursor");
-        const renderResult = renderer!.render(parseResult.spec);
+        const renderResult = renderer!.render(spec);
         expect(renderResult.success).toBe(true);
         
         if (renderResult.content) {
@@ -380,7 +468,11 @@ Body content.`;
       for (let i = 0; i < 100; i++) {
         const parseResult = parser!.parse(skill, { sourceFile: `test-${i}.md` });
         if (parseResult.success) {
-          renderer!.render(parseResult.spec);
+          const spec = parseResult.spec;
+          if (!spec) {
+            continue;
+          }
+          renderer!.render(spec);
         }
       }
       
@@ -412,8 +504,13 @@ Body content.`;
       expect(parseResult.success).toBe(true);
       
       if (parseResult.success) {
+        const spec = parseResult.spec;
+        expect(spec).toBeDefined();
+        if (!spec) {
+          return;
+        }
         const renderer = getRenderer("cursor");
-        const renderResult = renderer!.render(parseResult.spec);
+        const renderResult = renderer!.render(spec);
         
         expect(renderResult.success).toBe(true);
         

@@ -42,15 +42,15 @@ coding assistants as of January 2026.
 | **OpenCode**    | Agent    | `.opencode/agents/<name>.md`       | YAML frontmatter + MD | `@agent-name`    | ❌ Manual                 |
 | **Cursor**      | Command  | `.cursor/commands/<name>.md`       | Plain Markdown        | Manual           | ❌ No                     |
 
-### 1.4 Hooks/Lifecycle Events
+### 1.4 Hooks/Lifecycle / Plugin Systems
 
-| Agent           | Config Location         | Events                                                        | Format       | Blocking       |
-| --------------- | ----------------------- | ------------------------------------------------------------- | ------------ | -------------- |
-| **Claude Code** | `.claude/settings.json` | PreToolUse, PostToolUse, Stop, SessionStart, SessionEnd, etc. | JSON + Shell | ✅ Exit code 2 |
-| **Windsurf**    | `.windsurf/hooks.json`  | pre_read_code, post_write_code, pre_run_command, etc.         | JSON + Shell | ✅ Exit codes  |
-| **OpenCode**    | N/A                     | ❌ Not supported (uses permissions instead)                   | -            | -              |
-| **Cursor**      | N/A                     | ❌ Not supported                                              | -            | -              |
-| **Gemini CLI**  | N/A                     | ❌ Not supported                                              | -            | -              |
+| Agent           | Config Location                            | Events                                                                              | Format                            | Blocking                        |
+| --------------- | ------------------------------------------ | ----------------------------------------------------------------------------------- | --------------------------------- | ------------------------------- |
+| **Claude Code** | `.claude/settings.json`                    | PreToolUse, PostToolUse, UserPromptSubmit, Stop, TaskCompleted, SessionStart, etc. | JSON + command/http/prompt/agent | ✅ Exit code 2 / deny semantics |
+| **Windsurf**    | `.windsurf/hooks.json`                     | pre_user_prompt, pre/post read-write-command, MCP hooks, post_cascade_response     | JSON + shell                      | ✅ Exit code 2                  |
+| **Cursor**      | `.cursor/hooks.json` or Claude-compatible settings | beforeSubmitPrompt, preToolUse, postToolUse, afterAgentResponse, afterAgentThought | JSON + command/http/prompt/agent | ✅ Exit code 2                  |
+| **OpenCode**    | Plugin API                                 | session.created, session.deleted, tool.execute.before/after, message.updated, etc. | Plugin hooks                      | ⚠️ Not shell-exit-code based    |
+| **Gemini CLI**  | N/A                                        | ❌ No documented hook lifecycle system                                              | -                                 | -                               |
 
 ---
 
@@ -121,7 +121,7 @@ not “just markdown”. In practice this means:
 | Response hooks        | ❌ No                       | ✅ post_cascade_response                             |
 | Stop/completion hooks | ✅ Stop, SubagentStop       | ❌ No                                                |
 | MCP tool hooks        | ✅ Yes                      | ✅ pre_mcp_tool_use, post_mcp_tool_use               |
-| Blocking capability   | ✅ Exit code 2              | ✅ Exit codes                                        |
+| Blocking capability   | ✅ Exit code 2              | ✅ Exit code 2                                       |
 | Tool filtering        | ✅ `matcher` by tool name   | ✅ By event type                                     |
 | JSON input            | ✅ Yes                      | ✅ Yes                                               |
 | JSON output           | ✅ Yes                      | ✅ Yes                                               |

@@ -13,7 +13,7 @@ import { BaseOptimizer, type OptimizationContext, type OptimizationOptions, type
 import matter from 'gray-matter';
 
 export class ClaudeSourceOptimizer extends BaseOptimizer {
-  readonly targetAgent = 'claude' as const; // Source optimizer
+  readonly sourceAgent = 'claude' as const;
   readonly supportedRiskLevels = ['safe', 'medium', 'high', 'dangerous'] as const;
 
   async optimize(

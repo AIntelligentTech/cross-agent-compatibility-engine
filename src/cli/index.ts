@@ -57,6 +57,7 @@ import { validate } from "../validation/index.js";
 import { getParser, parseComponent, detectAgent } from "../parsing/parser-factory.js";
 import { getRenderer, renderComponent } from "../rendering/renderer-factory.js";
 import { AGENTS } from "../core/constants.js";
+import { getCompatibilityMatrix } from "../transformation/capability-mapper.js";
 import { optimizeCommand } from "./optimize-command.js";
 import { startInteractiveMode } from "./interactive.js";
 import { startWizard } from "./wizard.js";
@@ -197,19 +198,19 @@ program
   .action((source: string, options) => {
     console.log(chalk.blue(`🔄 Converting ${source}...`));
 
-    // Detect source format
-    const fromAgent = options.from || detectAgentFromPath(source);
-    if (!fromAgent) {
-      console.error(chalk.red("❌ Could not detect source agent. Use --from to specify."));
-      process.exit(1);
-    }
-
     // Read source file
     let content: string;
     try {
       content = readFileSync(source, "utf-8");
     } catch (err) {
       console.error(chalk.red(`❌ Failed to read ${source}: ${err instanceof Error ? err.message : String(err)}`));
+      process.exit(1);
+    }
+
+    const fromAgent: AgentId | undefined =
+      (options.from as AgentId | undefined) ?? detectAgent(content, source);
+    if (!fromAgent) {
+      console.error(chalk.red("❌ Could not detect source agent. Use --from to specify."));
       process.exit(1);
     }
 
@@ -244,16 +245,28 @@ program
     }
 
     // Convert
-    const targetAgent = options.to as AgentId;
+    const targetAgent: AgentId = options.to as AgentId;
     const renderer = getRenderer(targetAgent);
     if (!renderer) {
       console.error(chalk.red(`❌ No renderer available for ${targetAgent}`));
       process.exit(1);
     }
 
-    // Check for native compatibility (OpenCode can read Claude files)
+    const compatibilityMatrix = getCompatibilityMatrix();
+    const compatibilityScore = compatibilityMatrix[fromAgent]?.[targetAgent] ?? 0;
+    if (compatibilityScore === 0) {
+      console.error(
+        chalk.red(`❌ No supported conversion path from ${fromAgent} to ${targetAgent}`),
+      );
+      process.exit(1);
+    }
+
     if (fromAgent === "claude" && targetAgent === "opencode") {
       console.log(chalk.yellow("⚠️  Note: OpenCode natively supports Claude files. Conversion may not be necessary."));
+    }
+
+    if (options.verbose) {
+      console.log(chalk.gray(`   Estimated compatibility: ${compatibilityScore}%`));
     }
 
     const renderResult = renderer.render(parseResult.spec, {
@@ -482,8 +495,8 @@ program
       process.exit(1);
     }
 
-    // Detect agent
-    const agent = (options.from || detectAgentFromPath(source)) as AgentId;
+    const agent: AgentId | undefined =
+      (options.from as AgentId | undefined) ?? detectAgent(content, source);
     if (!agent) {
       console.error(chalk.red("❌ Could not detect agent type. Use --from to specify."));
       console.log(chalk.gray("Supported agents: " + SUPPORTED_AGENTS.join(", ")));
@@ -940,28 +953,39 @@ program
     console.log(chalk.blue.bold("🔄 Conversion Fidelity Matrix\n"));
     console.log(chalk.gray("   Estimated conversion quality between agents (higher is better)\n"));
     
+    const compatibilityMatrix = getCompatibilityMatrix();
+    const matrixAgents = SUPPORTED_AGENTS.filter(
+      (agent) => compatibilityMatrix[agent] !== undefined,
+    );
     const matrix = [
-      ["From→To", "Claude", "Cursor", "Windsurf", "OpenCode", "Codex", "Gemini"],
-      ["Claude", "—", "96%", "87%", "98%", "92%", "88%"],
-      ["Cursor", "90%", "—", "82%", "88%", "85%", "83%"],
-      ["Windsurf", "85%", "82%", "—", "90%", "88%", "86%"],
-      ["OpenCode", "95%", "88%", "90%", "—", "90%", "88%"],
-      ["Codex", "90%", "85%", "88%", "90%", "—", "87%"],
-      ["Gemini", "87%", "83%", "86%", "88%", "87%", "—"],
+      ["From→To", ...matrixAgents.map((agent) => getAgentTableLabel(agent))],
+      ...matrixAgents.map((sourceAgent) => [
+        getAgentTableLabel(sourceAgent),
+        ...matrixAgents.map((targetAgent) =>
+          sourceAgent === targetAgent
+            ? "—"
+            : formatCompatibilityCell(
+                compatibilityMatrix[sourceAgent]?.[targetAgent] ?? 0,
+              ),
+        ),
+      ]),
     ];
+    const columnWidth = 10;
 
     matrix.forEach((row, i) => {
       if (i === 0) {
-        console.log(chalk.bold("   " + row.map((c) => c.padEnd(10)).join("")));
-        console.log(chalk.gray("   " + "─".repeat(70)));
+        console.log(
+          chalk.bold("   " + row.map((c) => c.padEnd(columnWidth)).join("")),
+        );
+        console.log(chalk.gray("   " + "─".repeat(columnWidth * row.length)));
       } else {
         const coloredRow = row.map((c, j) => {
-          if (j === 0) return chalk.cyan(c.padEnd(10));
-          if (c === "—") return chalk.gray(c.padEnd(10));
+          if (j === 0) return chalk.cyan(c.padEnd(columnWidth));
+          if (c === "—") return chalk.gray(c.padEnd(columnWidth));
           const num = parseInt(c);
-          if (num >= 90) return chalk.green(c.padEnd(10));
-          if (num >= 80) return chalk.yellow(c.padEnd(10));
-          return chalk.red(c.padEnd(10));
+          if (num >= 90) return chalk.green(c.padEnd(columnWidth));
+          if (num >= 80) return chalk.yellow(c.padEnd(columnWidth));
+          return chalk.red(c.padEnd(columnWidth));
         });
         console.log("   " + coloredRow.join(""));
       }
@@ -969,6 +993,7 @@ program
     
     console.log();
     console.log(chalk.gray("   Legend: " + chalk.green("≥90% Excellent") + "  " + chalk.yellow("≥80% Good") + "  " + chalk.red("<80% Review needed")));
+    console.log(chalk.gray("   * Scores reflect currently registered source parsers and target renderers"));
     console.log(chalk.gray("   * OpenCode natively reads Claude files"));
     console.log(chalk.gray("   * Cursor 2.4+ natively reads Agent Skills, including .claude/skills for compatibility"));
 
@@ -1388,8 +1413,35 @@ function detectAgentFromPath(path: string): AgentId | null {
   if (path.includes(".cursor")) return "cursor";
   if (path.includes(".windsurf")) return "windsurf";
   if (path.includes(".opencode")) return "opencode";
-  if (path.includes("AGENTS.md")) return "cursor";
+  if (path.includes(".codex") || path.endsWith("CODEX.md")) return "codex";
+  if (path.includes(".gemini") || path.endsWith("GEMINI.md")) return "gemini";
+  if (path.includes("AGENTS.md")) return "universal";
   return null;
+}
+
+function getAgentTableLabel(agent: AgentId): string {
+  switch (agent) {
+    case "claude":
+      return "Claude";
+    case "windsurf":
+      return "Windsurf";
+    case "cursor":
+      return "Cursor";
+    case "opencode":
+      return "OpenCode";
+    case "codex":
+      return "Codex";
+    case "gemini":
+      return "Gemini";
+    case "universal":
+      return "Universal";
+    default:
+      return AGENTS[agent].displayName;
+  }
+}
+
+function formatCompatibilityCell(score: number): string {
+  return `${score}%`;
 }
 
 function detectComponentTypeFromPath(path: string): string | null {

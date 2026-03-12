@@ -78,7 +78,7 @@ export interface LostFeature {
  * Base class for LLM optimizers
  */
 export abstract class BaseOptimizer {
-  abstract readonly targetAgent: AgentId;
+  abstract readonly sourceAgent: AgentId;
   abstract readonly supportedRiskLevels: readonly RiskLevel[];
 
   /**
@@ -209,7 +209,7 @@ export class OptimizerFactory {
   private static optimizers = new Map<AgentId, BaseOptimizer>();
 
   static register(optimizer: BaseOptimizer): void {
-    OptimizerFactory.optimizers.set(optimizer.targetAgent, optimizer);
+    OptimizerFactory.optimizers.set(optimizer.sourceAgent, optimizer);
   }
 
   static getOptimizer(agent: AgentId): BaseOptimizer | undefined {

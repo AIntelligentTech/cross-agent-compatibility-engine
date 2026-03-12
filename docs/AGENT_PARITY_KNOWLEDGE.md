@@ -167,27 +167,35 @@ Explore the codebase...
 
 ### Claude Hooks System
 
-Claude Code's hooks system (introduced July 2025) enables event-driven automation:
+Claude Code's hooks system (introduced July 2025) enables event-driven automation through
+`.claude/settings.json`:
 
-```yaml
----
-name: pre-commit-hook
-description: Run linting before code commits
-hooks:
-  - event: PreToolUse
-    matcher: "Write"
-    command: "npm run lint"
----
-
-This skill runs linting checks before any Write tool use.
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run lint"
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
 
 **Hook Events Available:**
 - `PreToolUse` - Before tool execution
 - `PostToolUse` - After tool execution
+- `UserPromptSubmit` - Before the user prompt is submitted
 - `SessionStart` - New session begins
 - `SessionEnd` - Session ends
-- `Stop` / `SubagentStop` - Execution stops
+- `Stop` / `TaskCompleted` - Execution stops or the task completes
+- `SubagentStart` / `SubagentStop` - Sub-agent lifecycle
 
 ### Cursor Hooks (and Claude compatibility)
 
@@ -230,26 +238,43 @@ Follow these rules when editing TypeScript files:
 | Event triggers | ✅ Rich events | ✅ Rich events |
 | Pre-execution | ✅ `PreToolUse` | ✅ `preToolUse` |
 | Post-execution | ✅ `PostToolUse` | ✅ `postToolUse` |
+| Prompt hooks | ✅ `UserPromptSubmit` | ✅ `beforeSubmitPrompt` |
+| Response observation | ❌ No native response hook | ✅ `afterAgentResponse`, `afterAgentThought` |
+| Session lifecycle | ✅ `SessionStart`, `SessionEnd` | ❌ No session lifecycle hooks |
 | Pattern matching | ✅ Matchers | ✅ Matchers (mapped) |
 | Command execution | ✅ Shell commands | ✅ Shell commands |
 | Blocking | ✅ exit code 2 | ✅ exit code 2 |
 
 ### Key Differences
 
-1. **Tool mapping** - Some Claude tool names do not exist in Cursor (e.g. Claude `Glob`, `WebFetch`, `WebSearch`)
-2. **Native vs compatibility mode** - Cursor has extra hook features only in native `.cursor/hooks.json`
-3. **Rules vs hooks** - `.mdc` rules remain passive; use hooks for enforcement/automation
+1. **Settings vs native hooks** - Claude hook definitions live in `settings.json`; Cursor can load Claude-compatible settings or use native `.cursor/hooks.json`
+2. **Session lifecycle gap** - Claude has `SessionStart` and `SessionEnd`; Cursor does not expose equivalent session lifecycle hooks
+3. **Response hooks are Cursor-only** - Cursor adds `afterAgentResponse` and `afterAgentThought`, but they are observation-only
+4. **Tool mapping** - Some Claude tool names do not exist in Cursor, so matcher portability is not perfect
+5. **Rules vs hooks** - `.mdc` rules remain passive; use hooks for enforcement and automation
 
 ### Conversion Strategy
 
 Claude hooks → Cursor hooks (preferred), Cursor rules (fallback):
-```yaml
-# Claude Hook (cannot be fully converted)
-hooks:
-  - event: PreToolUse
-    command: "npm run lint"
+```json
+// Claude settings.json hook
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run lint"
+          }
+        ]
+      }
+    ]
+  }
+}
 
-# Cursor Hook (preferred)
+// Cursor hook (preferred)
 {
   "version": 1,
   "hooks": {
@@ -258,8 +283,11 @@ hooks:
     ]
   }
 }
+```
 
-# Cursor Rule (fallback: instructions only)
+Cursor rule fallback:
+
+```yaml
 ---
 description: Run linting before committing
 globs: ["src/**/*.ts"]
@@ -268,7 +296,10 @@ globs: ["src/**/*.ts"]
 Before making any code changes, run 'npm run lint' to ensure code quality.
 ```
 
-**Loss (fallback only)**: Command execution becomes documentation-only
+**Losses to document**:
+- Session lifecycle hooks do not carry over to Cursor
+- Cursor-native response hooks have no Claude equivalent
+- Rules remain documentation-only when used as a fallback instead of hooks
 
 ---
 

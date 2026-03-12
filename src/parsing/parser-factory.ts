@@ -8,6 +8,7 @@ import { ClaudeParser } from "./claude-parser.js";
 import { WindsurfParser } from "./windsurf-parser.js";
 import { CursorParser } from "./cursor-parser.js";
 import { UniversalParser } from "./universal-parser.js";
+import { OpenCodeParser } from "./opencode-parser.js";
 import { CodexParser } from "./codex-parser.js";
 import { GeminiParser } from "./gemini-parser.js";
 
@@ -18,6 +19,7 @@ parsers.set("claude", new ClaudeParser());
 parsers.set("windsurf", new WindsurfParser());
 parsers.set("cursor", new CursorParser());
 parsers.set("universal", new UniversalParser());
+parsers.set("opencode", new OpenCodeParser());
 parsers.set("codex", new CodexParser());
 parsers.set("gemini", new GeminiParser());
 
@@ -50,8 +52,14 @@ export function detectAgent(
   }
 
   // Try parsers in priority order (specific formats before generic)
-  // Order: claude, windsurf, cursor, universal (most generic)
-  const parserOrder: AgentId[] = ["claude", "windsurf", "cursor", "universal"];
+  // Order: claude, windsurf, cursor, opencode, universal (most generic)
+  const parserOrder: AgentId[] = [
+    "claude",
+    "windsurf",
+    "cursor",
+    "opencode",
+    "universal",
+  ];
 
   for (const agentId of parserOrder) {
     const parser = parsers.get(agentId);

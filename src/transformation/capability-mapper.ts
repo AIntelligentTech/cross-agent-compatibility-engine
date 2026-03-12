@@ -7,6 +7,9 @@ import type {
   CapabilityMapping,
   MappingStrategy,
 } from "../core/types.js";
+import { SUPPORTED_AGENTS } from "../core/constants.js";
+import { getSupportedParsers } from "../parsing/parser-factory.js";
+import { getSupportedRenderers } from "../rendering/renderer-factory.js";
 
 // Capability mappings database
 const mappings: CapabilityMapping[] = [
@@ -193,53 +196,65 @@ export function getCompatibilityMatrix(): Record<
   AgentId,
   Record<AgentId, number>
 > {
-  // Include all supported agents with renderers
-  const agents: AgentId[] = ["claude", "windsurf", "cursor", "universal"];
-  // Agents that are defined but don't have full conversion support yet
-  const partialAgents: AgentId[] = ["opencode", "gemini"];
-  const allAgents = [...agents, ...partialAgents];
+  const supportedParsers = new Set(getSupportedParsers());
+  const supportedRenderers = new Set(getSupportedRenderers());
+  const allAgents = SUPPORTED_AGENTS.filter(
+    (agent) => supportedParsers.has(agent) || supportedRenderers.has(agent),
+  );
   const matrix: Record<string, Record<string, number>> = {};
 
   for (const source of allAgents) {
     matrix[source] = {};
     for (const target of allAgents) {
+      const hasParser = supportedParsers.has(source);
+      const hasRenderer = supportedRenderers.has(target);
+
+      if (!hasParser || !hasRenderer) {
+        matrix[source][target] = 0;
+        continue;
+      }
+
       if (source === target) {
         matrix[source][target] = 100;
         continue;
       }
 
-      // Check if both source and target have full support
-      const hasFullSupport = agents.includes(source) && agents.includes(target);
-
-      if (!hasFullSupport) {
-        // No conversion support for partial agents yet
-        matrix[source][target] = 0;
-        continue;
-      }
-
-      // Universal (AGENTS.md) has high compatibility with all formats
       if (source === "universal" || target === "universal") {
-        // Universal is plain markdown, works everywhere
         matrix[source][target] = 95;
         continue;
       }
 
       const agentMappings = getMappings(source, target);
-      let score = 100;
+      let score = 90 + getNativeCompatibilityBonus(source, target);
 
       for (const mapping of agentMappings) {
         if (mapping.strategy.type === "unsupported") {
-          score -= 15;
+          score -= 4;
         } else if (mapping.strategy.type === "fallback") {
-          score -= 5;
-        } else if (mapping.strategy.type === "transform") {
           score -= 2;
+        } else if (mapping.strategy.type === "transform") {
+          score -= 1;
         }
       }
 
-      matrix[source][target] = Math.max(0, score);
+      matrix[source][target] = Math.max(0, Math.min(99, score));
     }
   }
 
   return matrix as Record<AgentId, Record<AgentId, number>>;
+}
+
+function getNativeCompatibilityBonus(
+  sourceAgent: AgentId,
+  targetAgent: AgentId,
+): number {
+  if (sourceAgent === "claude" && targetAgent === "opencode") {
+    return 8;
+  }
+
+  if (sourceAgent === "claude" && targetAgent === "cursor") {
+    return 4;
+  }
+
+  return 0;
 }

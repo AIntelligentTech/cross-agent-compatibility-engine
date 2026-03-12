@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync } from "fs";
 import type { AgentId } from "../core/types.js";
 import { SUPPORTED_AGENTS } from "../core/constants.js";
 import { validate } from "../validation/index.js";
-import { getParser } from "../parsing/parser-factory.js";
+import { detectAgent, getParser } from "../parsing/parser-factory.js";
 import { OptimizerFactory } from "../optimization/optimizer-core.js";
 import { ClaudeSourceOptimizer } from "../optimization/optimizers/claude-source-optimizer.js";
 
@@ -84,7 +84,7 @@ export function optimizeCommand(program: Command): void {
 
       // Detect agents
       const fromAgent = options.from as AgentId;
-      const toAgent = detectTargetAgent(source);
+      const toAgent = detectTargetAgent(source, convertedContent);
       
       if (!SUPPORTED_AGENTS.includes(fromAgent)) {
         console.error(chalk.red(`❌ Unsupported source agent: ${fromAgent}`));
@@ -153,9 +153,9 @@ export function optimizeCommand(program: Command): void {
       };
 
       // Get optimizer
-      const optimizer = OptimizerFactory.getOptimizer(toAgent);
+      const optimizer = OptimizerFactory.getOptimizer(fromAgent);
       if (!optimizer) {
-        console.error(chalk.red(`❌ No optimizer available for ${toAgent}`));
+        console.error(chalk.red(`❌ No optimizer available for source agent: ${fromAgent}`));
         process.exit(1);
       }
 
@@ -314,11 +314,16 @@ export function optimizeCommand(program: Command): void {
 }
 
 // Helper functions
-function detectTargetAgent(path: string): AgentId {
+function detectTargetAgent(path: string, content?: string): AgentId {
+  const detectedAgent = content ? detectAgent(content, path) : undefined;
+  if (detectedAgent) return detectedAgent;
   if (path.includes(".claude")) return "claude";
   if (path.includes(".cursor")) return "cursor";
   if (path.includes(".windsurf")) return "windsurf";
   if (path.includes(".opencode")) return "opencode";
+  if (path.includes(".codex") || path.endsWith("CODEX.md")) return "codex";
+  if (path.includes(".gemini") || path.endsWith("GEMINI.md")) return "gemini";
+  if (path.endsWith("AGENTS.md")) return "universal";
   return "claude";
 }
 
