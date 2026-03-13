@@ -20,7 +20,9 @@ import type {
   ConversionWarning,
   RuleActivation,
 } from "../core/types.js";
+import { cloneRawConfig, mergeRawFrontmatter } from "../core/component-preservation.js";
 import { BaseRenderer, type RenderOptions } from "./renderer-interface.js";
+import { WindsurfHooksRenderer, type HookLoss, type HookWarning } from "./windsurf-hooks-renderer.js";
 
 // Extended spec shape that includes optional memory/rule/hook fields
 interface ExtendedComponentSpec extends ComponentSpec {
@@ -36,6 +38,10 @@ export class WindsurfRenderer extends BaseRenderer {
   ):
     | ReturnType<typeof this.createSuccessResult>
     | ReturnType<typeof this.createErrorResult> {
+    if (spec.componentType === "hook") {
+      return this.renderHooks(spec);
+    }
+
     const startTime = Date.now();
     const losses: ConversionLoss[] = [];
     const warnings: ConversionWarning[] = [];
@@ -197,7 +203,16 @@ export class WindsurfRenderer extends BaseRenderer {
     }
 
     // Build the output
-    const frontmatterYaml = this.buildFrontmatter(frontmatter);
+    const mergedFrontmatter =
+      options?.preserveOriginalMetadata === false
+        ? frontmatter
+        : mergeRawFrontmatter(frontmatter, spec.metadata, [
+            "description",
+            "trigger",
+            "globs",
+            "tags",
+          ]);
+    const frontmatterYaml = this.buildFrontmatter(mergedFrontmatter);
     let body = spec.body;
 
     // Apply version adaptation if needed
@@ -290,10 +305,16 @@ export class WindsurfRenderer extends BaseRenderer {
   }
 
   getTargetFilename(spec: ComponentSpec): string {
+    if (spec.componentType === "hook") {
+      return "hooks.json";
+    }
     return `${spec.id}.md`;
   }
 
   getTargetDirectory(spec: ComponentSpec): string {
+    if (spec.componentType === "hook") {
+      return ".windsurf";
+    }
     if (spec.componentType === "rule") {
       return ".windsurf/rules";
     }
@@ -359,6 +380,83 @@ export class WindsurfRenderer extends BaseRenderer {
 
     lines.push("---");
     return lines.join("\n");
+  }
+
+  private renderHooks(
+    spec: ComponentSpec,
+  ):
+    | ReturnType<typeof this.createSuccessResult>
+    | ReturnType<typeof this.createErrorResult> {
+    const startTime = Date.now();
+
+    if (spec.sourceAgent?.id === "claude" && spec.metadata.rawConfig) {
+      const hooksRenderer = new WindsurfHooksRenderer();
+      const result = hooksRenderer.renderFromClaudeSettings(
+        JSON.stringify(spec.metadata.rawConfig),
+      );
+      const report: ConversionReport = {
+        ...this.createConversionReport(spec, "windsurf", startTime),
+        preservedSemantics: ["Hook commands", "Hook event mapping"],
+        losses: result.losses.map((loss: HookLoss) => ({
+          category: "configuration",
+          severity: "warning",
+          description: loss.reason,
+          sourceField: `hooks.${loss.claudeEvent}`,
+        })),
+        warnings: result.warnings.map((warning: HookWarning) => ({
+          code: warning.code,
+          message: warning.message,
+        })),
+        suggestions: [],
+        fidelityScore: result.fidelityScore,
+      };
+
+      return this.createSuccessResult(
+        `${result.hooksJson}\n`,
+        this.getTargetFilename(spec),
+        report,
+      );
+    }
+
+    const rawConfig = cloneRawConfig(spec.metadata);
+    const hooks = rawConfig?.hooks;
+    const content =
+      hooks && typeof hooks === "object"
+        ? JSON.stringify({ hooks }, null, 2)
+        : JSON.stringify(
+            {
+              hooks: Object.fromEntries(
+                (spec.hooks ?? []).map((hook) => [
+                  hook.event,
+                  [
+                    {
+                      command: hook.command,
+                      ...(hook.workingDirectory
+                        ? { working_directory: hook.workingDirectory }
+                        : {}),
+                    },
+                  ],
+                ]),
+              ),
+            },
+            null,
+            2,
+          );
+
+    const report: ConversionReport = {
+      ...this.createConversionReport(spec, "windsurf", startTime),
+      preservedSemantics: ["Hook commands", "Hook lifecycle bindings"],
+      losses: [],
+      warnings: [],
+      suggestions: [],
+      fidelityScore: 100,
+    };
+
+    return this.createSuccessResult(
+      `${content}\n`,
+      this.getTargetFilename(spec),
+      report,
+    );
   }
 
   private calculateFidelity(

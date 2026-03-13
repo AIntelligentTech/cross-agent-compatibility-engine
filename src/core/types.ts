@@ -172,7 +172,13 @@ export interface ComponentMetadata {
   license?: string;
   tags?: string[];
   sourceFile?: string;
+  sourcePath?: string;
+  sourceDirectory?: string;
   originalFormat?: string;
+  rawFrontmatter?: Record<string, unknown>;
+  rawConfig?: Record<string, unknown>;
+  customFields?: Record<string, unknown>;
+  preservedKeys?: string[];
   // Codex-specific
   model?: string;
   approvalPolicy?: string;
@@ -236,6 +242,10 @@ export interface ComponentSpec {
 
   // Agent-Specific Overrides
   agentOverrides?: Record<AgentId, AgentOverride>;
+
+  ruleActivation?: RuleActivation;
+  memorySpec?: MemorySpec;
+  hooks?: HookSpec[];
 
   // Metadata
   metadata: ComponentMetadata;

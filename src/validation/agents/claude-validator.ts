@@ -40,6 +40,10 @@ export class ClaudeValidator extends BaseValidator {
     const warnings: ValidationIssue[] = [];
     const info: ValidationIssue[] = [];
 
+    if (componentType === 'hook' && content.trim().startsWith('{')) {
+      return this.validateHookConfig(content, version);
+    }
+
     try {
       const parsed = matter(content);
       const fm = parsed.data as ClaudeFrontmatter;
@@ -569,6 +573,93 @@ export class ClaudeValidator extends BaseValidator {
         )
       );
     }
+  }
+
+  private validateHookConfig(
+    content: string,
+    version: string,
+  ): ValidationResult {
+    const issues: ValidationIssue[] = [];
+    const warnings: ValidationIssue[] = [];
+    const info: ValidationIssue[] = [];
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
+      return this.createErrorResult(
+        'hook',
+        version,
+        [
+          this.createIssue(
+            'PARSE_ERROR',
+            `Failed to parse hook config: ${err instanceof Error ? err.message : String(err)}`,
+            'error'
+          ),
+        ],
+        { parseError: true }
+      );
+    }
+
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      issues.push(
+        this.createIssue(
+          'INVALID_ROOT',
+          'Claude hook config must be a JSON object',
+          'error'
+        )
+      );
+    }
+
+    const settings = parsed as Record<string, unknown>;
+    const hooks = settings['hooks'];
+
+    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) {
+      issues.push(
+        this.createIssue(
+          'MISSING_HOOKS',
+          'Claude hook config must contain a "hooks" object',
+          'error',
+          'hooks'
+        )
+      );
+    } else {
+      for (const [event, groups] of Object.entries(hooks as Record<string, unknown>)) {
+        if (!Array.isArray(groups)) {
+          issues.push(
+            this.createIssue(
+              'INVALID_EVENT_GROUP',
+              `Hook event "${event}" must map to an array`,
+              'error',
+              event
+            )
+          );
+          continue;
+        }
+
+        info.push(
+          this.createIssue(
+            'HOOK_EVENT',
+            `Found ${groups.length} hook group(s) for ${event}`,
+            'info',
+            event
+          )
+        );
+      }
+    }
+
+    return {
+      valid: issues.length === 0,
+      agent: this.agentId,
+      componentType: 'hook',
+      version,
+      issues,
+      warnings,
+      info,
+      metadata: {
+        isJsonConfig: true,
+      },
+    };
   }
 
   private validateMemory(

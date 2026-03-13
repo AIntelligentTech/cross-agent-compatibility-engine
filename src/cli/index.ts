@@ -51,13 +51,21 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { readFileSync, existsSync, mkdirSync, writeFileSync, copyFileSync, readdirSync, statSync } from "fs";
 import { dirname, join, basename, relative, resolve } from "path";
-import type { AgentId, ComponentSpec } from "../core/types.js";
+import type { AgentId, ComponentSpec, ComponentType } from "../core/types.js";
 import { SUPPORTED_AGENTS } from "../core/constants.js";
+import {
+  formatSupportLevel,
+  getArtifactSupport,
+  REPORTABLE_COMPONENT_TYPES,
+} from "../core/artifact-support.js";
 import { validate } from "../validation/index.js";
 import { getParser, parseComponent, detectAgent } from "../parsing/parser-factory.js";
 import { getRenderer, renderComponent } from "../rendering/renderer-factory.js";
 import { AGENTS } from "../core/constants.js";
-import { getCompatibilityMatrix } from "../transformation/capability-mapper.js";
+import {
+  getArtifactCompatibilityScore,
+  getCompatibilityMatrix,
+} from "../transformation/capability-mapper.js";
 import { optimizeCommand } from "./optimize-command.js";
 import { startInteractiveMode } from "./interactive.js";
 import { startWizard } from "./wizard.js";
@@ -252,11 +260,16 @@ program
       process.exit(1);
     }
 
-    const compatibilityMatrix = getCompatibilityMatrix();
-    const compatibilityScore = compatibilityMatrix[fromAgent]?.[targetAgent] ?? 0;
+    const compatibilityScore = getArtifactCompatibilityScore(
+      fromAgent,
+      targetAgent,
+      parseResult.spec.componentType,
+    );
     if (compatibilityScore === 0) {
       console.error(
-        chalk.red(`❌ No supported conversion path from ${fromAgent} to ${targetAgent}`),
+        chalk.red(
+          `❌ No supported conversion path from ${fromAgent} ${parseResult.spec.componentType} to ${targetAgent}`,
+        ),
       );
       process.exit(1);
     }
@@ -266,7 +279,11 @@ program
     }
 
     if (options.verbose) {
-      console.log(chalk.gray(`   Estimated compatibility: ${compatibilityScore}%`));
+      console.log(
+        chalk.gray(
+          `   Estimated ${parseResult.spec.componentType} compatibility: ${compatibilityScore}%`,
+        ),
+      );
     }
 
     const renderResult = renderer.render(parseResult.spec, {
@@ -951,9 +968,9 @@ program
     // Compatibility matrix
     console.log();
     console.log(chalk.blue.bold("🔄 Conversion Fidelity Matrix\n"));
-    console.log(chalk.gray("   Estimated conversion quality between agents (higher is better)\n"));
+    console.log(chalk.gray("   Estimated conversion quality for primary skill-style artifacts\n"));
     
-    const compatibilityMatrix = getCompatibilityMatrix();
+    const compatibilityMatrix = getCompatibilityMatrix("skill");
     const matrixAgents = SUPPORTED_AGENTS.filter(
       (agent) => compatibilityMatrix[agent] !== undefined,
     );
@@ -993,9 +1010,53 @@ program
     
     console.log();
     console.log(chalk.gray("   Legend: " + chalk.green("≥90% Excellent") + "  " + chalk.yellow("≥80% Good") + "  " + chalk.red("<80% Review needed")));
-    console.log(chalk.gray("   * Scores reflect currently registered source parsers and target renderers"));
+    console.log(chalk.gray("   * Scores are artifact-aware and this matrix is shown for skill-style conversions"));
     console.log(chalk.gray("   * OpenCode natively reads Claude files"));
     console.log(chalk.gray("   * Cursor 2.4+ natively reads Agent Skills, including .claude/skills for compatibility"));
+    console.log();
+    console.log(chalk.blue.bold("🧩 Artifact Support Matrix\n"));
+    console.log(chalk.gray("   Parse/Render/Validate capability by agent and component type\n"));
+
+    const supportColumnWidth = 13;
+    const supportMatrix = [
+      ["Type", ...SUPPORTED_AGENTS.map((agent) => getAgentTableLabel(agent))],
+      ...REPORTABLE_COMPONENT_TYPES.map((componentType) => [
+        componentType,
+        ...SUPPORTED_AGENTS.map((agent) =>
+          formatArtifactSupportCell(agent, componentType),
+        ),
+      ]),
+    ];
+
+    supportMatrix.forEach((row, index) => {
+      if (index === 0) {
+        console.log(
+          chalk.bold("   " + row.map((cell) => cell.padEnd(supportColumnWidth)).join("")),
+        );
+        console.log(chalk.gray("   " + "─".repeat(supportColumnWidth * row.length)));
+        return;
+      }
+
+      const formatted = row.map((cell, columnIndex) => {
+        if (columnIndex === 0) {
+          return chalk.cyan(cell.padEnd(supportColumnWidth));
+        }
+
+        if (cell === "-/-/N") {
+          return chalk.gray(cell.padEnd(supportColumnWidth));
+        }
+
+        if (cell.includes("D")) {
+          return chalk.yellow(cell.padEnd(supportColumnWidth));
+        }
+
+        return chalk.green(cell.padEnd(supportColumnWidth));
+      });
+
+      console.log("   " + formatted.join(""));
+    });
+    console.log();
+    console.log(chalk.gray("   Legend: N = native, D = degraded, - = unsupported, final flag = validator available"));
 
     // Recommendations
     console.log();
@@ -1442,6 +1503,17 @@ function getAgentTableLabel(agent: AgentId): string {
 
 function formatCompatibilityCell(score: number): string {
   return `${score}%`;
+}
+
+function formatArtifactSupportCell(
+  agent: AgentId,
+  componentType: ComponentType,
+): string {
+  const support = getArtifactSupport(agent, componentType);
+  const parseCell = formatSupportLevel(support.parse);
+  const renderCell = formatSupportLevel(support.render);
+  const validateCell = support.validate ? "Y" : "N";
+  return `${parseCell}/${renderCell}/${validateCell}`;
 }
 
 function detectComponentTypeFromPath(path: string): string | null {

@@ -11,12 +11,15 @@ import matter from "gray-matter";
 import type {
   ComponentSpec,
   CapabilitySet,
+  HookSpec,
   SemanticVersion,
 } from "../core/types.js";
 import { createDefaultCapabilities, parseVersion } from "../core/types.js";
+import { createMetadata } from "../core/component-preservation.js";
 import { BaseParser, type ParserOptions } from "./parser-interface.js";
 import type { VersionDetectionResult } from "../versioning/types.js";
 import { detectClaudeVersion } from "../versioning/version-detector.js";
+import { isClaudeMemory, parseClaudeMemory } from "./memory/claude-memory-parser.js";
 
 interface ClaudeFrontmatter {
   name?: string;
@@ -31,17 +34,58 @@ interface ClaudeFrontmatter {
   version?: string;
 }
 
+interface ClaudeHookEntry {
+  type?: string;
+  command?: string;
+  timeout?: number;
+  [key: string]: unknown;
+}
+
+interface ClaudeHookGroup {
+  matcher?: string;
+  hooks?: ClaudeHookEntry[];
+  type?: string;
+  command?: string;
+  timeout?: number;
+  [key: string]: unknown;
+}
+
+interface ClaudeSettingsFile {
+  hooks?: Record<string, ClaudeHookGroup[]>;
+  [key: string]: unknown;
+}
+
+const CLAUDE_FRONTMATTER_KEYS = [
+  "name",
+  "description",
+  "argument-hint",
+  "disable-model-invocation",
+  "user-invocable",
+  "allowed-tools",
+  "model",
+  "context",
+  "agent",
+  "version",
+] as const;
+
 export class ClaudeParser extends BaseParser {
   readonly agentId = "claude" as const;
 
   canParse(content: string, filename?: string): boolean {
     if (filename) {
+      if (filename.endsWith(".claude/settings.json")) {
+        return true;
+      }
       if (
         filename.includes(".claude/skills/") ||
         filename.includes(".claude/commands/")
       ) {
         return true;
       }
+    }
+
+    if (isClaudeMemory(content, { sourceFile: filename })) {
+      return true;
     }
 
     // Check for Claude-specific frontmatter fields
@@ -76,6 +120,17 @@ export class ClaudeParser extends BaseParser {
     | ReturnType<typeof this.createSuccessResult>
     | ReturnType<typeof this.createErrorResult> {
     const warnings: string[] = [];
+
+    if (options?.sourceFile?.endsWith(".claude/settings.json")) {
+      return this.parseHooksConfig(content, options);
+    }
+
+    if (isClaudeMemory(content, { sourceFile: options?.sourceFile })) {
+      return parseClaudeMemory(content, {
+        sourceFile: options?.sourceFile,
+        sourcePath: options?.sourceFile,
+      });
+    }
 
     // Validate content is not empty
     if (!content || content.trim().length === 0) {
@@ -146,11 +201,18 @@ export class ClaudeParser extends BaseParser {
       },
       body,
       capabilities,
-      metadata: {
-        sourceFile: options?.sourceFile,
-        originalFormat: "claude-skill",
-        updatedAt: new Date().toISOString(),
-      },
+      metadata: createMetadata(
+        {
+          sourceFile: options?.sourceFile,
+          originalFormat: "claude-skill",
+          rawFrontmatter: fm as Record<string, unknown>,
+          knownKeys: CLAUDE_FRONTMATTER_KEYS,
+        },
+        {
+          model: fm.model,
+          allowedTools: fm["allowed-tools"],
+        },
+      ),
     };
 
     // Add warnings for features that may not convert well
@@ -192,6 +254,105 @@ export class ClaudeParser extends BaseParser {
     if (cmdMatch?.[1]) return cmdMatch[1];
 
     return undefined;
+  }
+
+  private parseHooksConfig(
+    content: string,
+    options?: ParserOptions,
+  ):
+    | ReturnType<typeof this.createSuccessResult>
+    | ReturnType<typeof this.createErrorResult> {
+    let settings: ClaudeSettingsFile;
+
+    try {
+      settings = JSON.parse(content) as ClaudeSettingsFile;
+    } catch (err) {
+      return this.createErrorResult([
+        `Failed to parse Claude settings JSON: ${err instanceof Error ? err.message : String(err)}`,
+      ]);
+    }
+
+    const hookGroups = settings.hooks;
+    if (!hookGroups || typeof hookGroups !== "object" || Array.isArray(hookGroups)) {
+      return this.createErrorResult([
+        'Claude settings JSON must contain a top-level "hooks" object',
+      ]);
+    }
+
+    const hooks: HookSpec[] = [];
+
+    for (const [event, groups] of Object.entries(hookGroups)) {
+      if (!Array.isArray(groups)) {
+        continue;
+      }
+
+      for (const group of groups) {
+        const matcher = typeof group.matcher === "string" ? group.matcher : undefined;
+        const entries = Array.isArray(group.hooks)
+          ? group.hooks
+          : typeof group.command === "string"
+            ? [group]
+            : [];
+
+        for (const entry of entries) {
+          if (typeof entry.command !== "string") {
+            continue;
+          }
+
+          hooks.push({
+            event: event as HookSpec["event"],
+            matcher,
+            command: entry.command,
+            timeout:
+              typeof entry.timeout === "number"
+                ? entry.timeout
+                : typeof group.timeout === "number"
+                  ? group.timeout
+                  : undefined,
+          });
+        }
+      }
+    }
+
+    const capabilities = createDefaultCapabilities();
+    capabilities.needsShell = hooks.length > 0;
+    capabilities.providesAnalysis = true;
+
+    const spec: ComponentSpec = {
+      id: "claude-hooks",
+      version: { major: 1, minor: 0, patch: 0 },
+      sourceAgent: {
+        id: "claude",
+        detectedAt: new Date().toISOString(),
+      },
+      componentType: "hook",
+      category: ["automation", "hooks"],
+      intent: {
+        summary: "Claude Code lifecycle hooks configuration",
+        purpose: "Configure lifecycle hooks for Claude Code sessions and tool use",
+      },
+      activation: {
+        mode: "hooked",
+        safetyLevel: "dangerous",
+      },
+      invocation: {
+        userInvocable: false,
+      },
+      execution: {
+        context: "main",
+      },
+      body: content,
+      capabilities,
+      hooks,
+      metadata: createMetadata({
+        sourceFile: options?.sourceFile,
+        originalFormat: "claude-settings-hooks",
+        rawConfig: settings as Record<string, unknown>,
+        knownKeys: ["hooks"],
+      }),
+    };
+
+    return this.createSuccessResult(spec, []);
   }
 
   private mapContext(context?: string): "main" | "fork" | "isolated" {

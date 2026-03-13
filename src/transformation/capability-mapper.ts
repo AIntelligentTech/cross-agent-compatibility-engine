@@ -5,11 +5,15 @@
 import type {
   AgentId,
   CapabilityMapping,
+  ComponentType,
   MappingStrategy,
 } from "../core/types.js";
 import { SUPPORTED_AGENTS } from "../core/constants.js";
-import { getSupportedParsers } from "../parsing/parser-factory.js";
-import { getSupportedRenderers } from "../rendering/renderer-factory.js";
+import {
+  AGENT_ARTIFACT_SUPPORT,
+  getArtifactSupport,
+  supportLevelWeight,
+} from "../core/artifact-support.js";
 
 // Capability mappings database
 const mappings: CapabilityMapping[] = [
@@ -192,56 +196,102 @@ export function describeStrategy(strategy: MappingStrategy): string {
   }
 }
 
-export function getCompatibilityMatrix(): Record<
+export function getCompatibilityMatrix(
+  componentType: ComponentType = "skill",
+): Record<
   AgentId,
   Record<AgentId, number>
 > {
-  const supportedParsers = new Set(getSupportedParsers());
-  const supportedRenderers = new Set(getSupportedRenderers());
   const allAgents = SUPPORTED_AGENTS.filter(
-    (agent) => supportedParsers.has(agent) || supportedRenderers.has(agent),
+    (agent) => {
+      const support = AGENT_ARTIFACT_SUPPORT[agent];
+      return Object.keys(support).length > 0;
+    },
   );
   const matrix: Record<string, Record<string, number>> = {};
 
   for (const source of allAgents) {
     matrix[source] = {};
     for (const target of allAgents) {
-      const hasParser = supportedParsers.has(source);
-      const hasRenderer = supportedRenderers.has(target);
-
-      if (!hasParser || !hasRenderer) {
-        matrix[source][target] = 0;
-        continue;
-      }
-
-      if (source === target) {
-        matrix[source][target] = 100;
-        continue;
-      }
-
-      if (source === "universal" || target === "universal") {
-        matrix[source][target] = 95;
-        continue;
-      }
-
-      const agentMappings = getMappings(source, target);
-      let score = 90 + getNativeCompatibilityBonus(source, target);
-
-      for (const mapping of agentMappings) {
-        if (mapping.strategy.type === "unsupported") {
-          score -= 4;
-        } else if (mapping.strategy.type === "fallback") {
-          score -= 2;
-        } else if (mapping.strategy.type === "transform") {
-          score -= 1;
-        }
-      }
-
-      matrix[source][target] = Math.max(0, Math.min(99, score));
+      matrix[source][target] = getArtifactCompatibilityScore(
+        source,
+        target,
+        componentType,
+      );
     }
   }
 
   return matrix as Record<AgentId, Record<AgentId, number>>;
+}
+
+export function getArtifactCompatibilityScore(
+  sourceAgent: AgentId,
+  targetAgent: AgentId,
+  componentType: ComponentType,
+): number {
+  const sourceSupport = getArtifactSupport(sourceAgent, componentType);
+  const targetSupport = getArtifactSupport(targetAgent, componentType);
+
+  if (
+    sourceSupport.parse === "none" ||
+    targetSupport.render === "none"
+  ) {
+    return 0;
+  }
+
+  if (sourceAgent === targetAgent) {
+    return 100;
+  }
+
+  if (componentType === "hook") {
+    if (
+      (sourceAgent === "claude" && targetAgent === "windsurf") ||
+      (sourceAgent === "windsurf" && targetAgent === "claude")
+    ) {
+      return 78;
+    }
+
+    return 0;
+  }
+
+  if (componentType === "memory") {
+    if (sourceAgent === "universal" || targetAgent === "universal") {
+      return 95;
+    }
+
+    return Math.round(
+      70 *
+        supportLevelWeight(sourceSupport.parse) *
+        supportLevelWeight(targetSupport.render),
+    );
+  }
+
+  if (sourceAgent === "universal" || targetAgent === "universal") {
+    return 95;
+  }
+
+  const agentMappings = getMappings(sourceAgent, targetAgent);
+  let score = 90 + getNativeCompatibilityBonus(sourceAgent, targetAgent);
+
+  if (sourceSupport.parse === "degraded") {
+    score -= 12;
+  }
+
+  if (targetSupport.render === "degraded") {
+    score -= 12;
+  }
+
+  for (const mapping of agentMappings) {
+    if (mapping.strategy.type === "unsupported") {
+      score -= 4;
+    } else if (mapping.strategy.type === "fallback") {
+      score -= 2;
+    } else if (mapping.strategy.type === "transform") {
+      score -= 1;
+    }
+  }
+
+  return Math.max(0, Math.min(99, score));
 }
 
 function getNativeCompatibilityBonus(

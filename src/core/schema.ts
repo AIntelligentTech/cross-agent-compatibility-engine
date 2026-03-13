@@ -8,7 +8,17 @@ import { z } from 'zod';
 // Base Schemas
 // ============================================================================
 
-export const AgentIdSchema = z.enum(['claude', 'windsurf', 'cursor', 'opencode', 'aider', 'continue']);
+export const AgentIdSchema = z.enum([
+  'claude',
+  'windsurf',
+  'cursor',
+  'opencode',
+  'aider',
+  'continue',
+  'codex',
+  'gemini',
+  'universal',
+]);
 
 export const SemanticVersionSchema = z.object({
   major: z.number().int().min(0),
@@ -106,9 +116,11 @@ export const CapabilitySetSchema = z.object({
 
 export const SemanticIntentSchema = z.object({
   summary: z.string(),
-  purpose: z.string(),
+  purpose: z.string().optional(),
+  detailed: z.string().optional(),
   whenToUse: z.string().optional(),
   category: z.array(z.string()).optional(),
+  examples: z.array(z.string()).optional(),
 });
 
 // ============================================================================
@@ -122,7 +134,29 @@ export const ComponentMetadataSchema = z.object({
   license: z.string().optional(),
   tags: z.array(z.string()).optional(),
   sourceFile: z.string().optional(),
+  sourcePath: z.string().optional(),
+  sourceDirectory: z.string().optional(),
   originalFormat: z.string().optional(),
+  rawFrontmatter: z.record(z.unknown()).optional(),
+  rawConfig: z.record(z.unknown()).optional(),
+  customFields: z.record(z.unknown()).optional(),
+  preservedKeys: z.array(z.string()).optional(),
+  model: z.string().optional(),
+  approvalPolicy: z.string().optional(),
+  sandboxMode: z.string().optional(),
+  webSearch: z.string().optional(),
+  mcpServers: z.record(z.unknown()).optional(),
+  allowedTools: z.array(z.string()).optional(),
+  tools: z.array(z.string()).optional(),
+  features: z.record(z.boolean()).optional(),
+  subtask: z.boolean().optional(),
+  mode: z.string().optional(),
+  temperature: z.number().optional(),
+  maxTokens: z.number().int().optional(),
+  codeExecution: z.boolean().optional(),
+  googleSearch: z.boolean().optional(),
+  includeDirectories: z.array(z.string()).optional(),
+  instruction: z.string().optional(),
 });
 
 // ============================================================================
@@ -147,6 +181,66 @@ export const AgentOverrideSchema = z.object({
   capabilityOverrides: CapabilitySetSchema.partial().optional(),
 });
 
+export const RuleActivationSchema = z.object({
+  globs: z.array(z.string()).optional(),
+  paths: z.array(z.string()).optional(),
+  alwaysApply: z.boolean(),
+  agentDecided: z.boolean(),
+  description: z.string().optional(),
+  scope: z.enum(['system', 'user', 'project', 'local']),
+});
+
+export const HookSpecSchema = z.object({
+  event: z.enum([
+    'PreToolUse',
+    'PostToolUse',
+    'Stop',
+    'SubagentStop',
+    'SessionStart',
+    'SessionEnd',
+    'UserPromptSubmit',
+    'Notification',
+    'PreCompact',
+    'Setup',
+    'PermissionRequest',
+    'pre_read_code',
+    'post_read_code',
+    'pre_write_code',
+    'post_write_code',
+    'pre_run_command',
+    'post_run_command',
+    'pre_mcp_tool_use',
+    'post_mcp_tool_use',
+    'pre_user_prompt',
+    'post_cascade_response',
+    'post_setup_worktree',
+  ]),
+  matcher: z.string().optional(),
+  command: z.string(),
+  timeout: z.number().int().optional(),
+  workingDirectory: z.string().optional(),
+});
+
+export const ImportSpecSchema = z.object({
+  path: z.string(),
+  type: z.enum(['file', 'url', 'package']),
+  resolved: z.string().optional(),
+  optional: z.boolean().optional(),
+});
+
+export const MemorySectionSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  required: z.boolean().optional(),
+});
+
+export const MemorySpecSchema = z.object({
+  imports: z.array(ImportSpecSchema).optional(),
+  scope: z.enum(['system', 'user', 'project', 'local']),
+  hierarchical: z.boolean(),
+  sections: z.array(MemorySectionSchema).optional(),
+});
+
 // ============================================================================
 // ComponentSpec - The Main Schema
 // ============================================================================
@@ -165,6 +259,9 @@ export const ComponentSpecSchema = z.object({
   arguments: z.array(ArgumentSpecSchema).optional(),
   capabilities: CapabilitySetSchema,
   agentOverrides: z.record(AgentIdSchema, AgentOverrideSchema).optional(),
+  ruleActivation: RuleActivationSchema.optional(),
+  memorySpec: MemorySpecSchema.optional(),
+  hooks: z.array(HookSpecSchema).optional(),
   metadata: ComponentMetadataSchema,
 });
 
@@ -172,7 +269,16 @@ export const ComponentSpecSchema = z.object({
 // Conversion Report Schemas
 // ============================================================================
 
-export const LossCategorySchema = z.enum(['activation', 'execution', 'capability', 'metadata', 'content']);
+export const LossCategorySchema = z.enum([
+  'activation',
+  'execution',
+  'capability',
+  'metadata',
+  'content',
+  'security',
+  'configuration',
+  'tools',
+]);
 export const LossSeveritySchema = z.enum(['info', 'warning', 'critical']);
 
 export const ConversionLossSchema = z.object({

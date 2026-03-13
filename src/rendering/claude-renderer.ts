@@ -9,6 +9,10 @@ import type {
   ConversionWarning,
 } from "../core/types.js";
 import { formatVersion } from "../core/types.js";
+import {
+  cloneRawConfig,
+  mergeRawFrontmatter,
+} from "../core/component-preservation.js";
 import { BaseRenderer, type RenderOptions } from "./renderer-interface.js";
 
 export class ClaudeRenderer extends BaseRenderer {
@@ -20,6 +24,10 @@ export class ClaudeRenderer extends BaseRenderer {
   ):
     | ReturnType<typeof this.createSuccessResult>
     | ReturnType<typeof this.createErrorResult> {
+    if (spec.componentType === "hook") {
+      return this.renderHooks(spec);
+    }
+
     const startTime = Date.now();
     const losses: ConversionLoss[] = [];
     const warnings: ConversionWarning[] = [];
@@ -115,8 +123,24 @@ export class ClaudeRenderer extends BaseRenderer {
       }
     }
 
+    const mergedFrontmatter =
+      options?.preserveOriginalMetadata === false
+        ? frontmatter
+        : mergeRawFrontmatter(frontmatter, spec.metadata, [
+            "name",
+            "description",
+            "disable-model-invocation",
+            "user-invocable",
+            "argument-hint",
+            "context",
+            "allowed-tools",
+            "model",
+            "agent",
+            "version",
+          ]);
+
     // Build the output
-    const frontmatterYaml = this.buildFrontmatter(frontmatter);
+    const frontmatterYaml = this.buildFrontmatter(mergedFrontmatter);
     let body = spec.body;
 
     // Apply version adaptation if needed
@@ -169,10 +193,16 @@ export class ClaudeRenderer extends BaseRenderer {
   }
 
   getTargetFilename(spec: ComponentSpec): string {
+    if (spec.componentType === "hook") {
+      return "settings.json";
+    }
     return `${spec.id}/SKILL.md`;
   }
 
   getTargetDirectory(_spec: ComponentSpec): string {
+    if (_spec.componentType === "hook") {
+      return ".claude";
+    }
     return ".claude/skills";
   }
 
@@ -211,6 +241,110 @@ export class ClaudeRenderer extends BaseRenderer {
 
     lines.push("---");
     return lines.join("\n");
+  }
+
+  private renderHooks(
+    spec: ComponentSpec,
+  ):
+    | ReturnType<typeof this.createSuccessResult>
+    | ReturnType<typeof this.createErrorResult> {
+    const startTime = Date.now();
+    const losses: ConversionLoss[] = [];
+    const warnings: ConversionWarning[] = [];
+    const preservedSemantics: string[] = [];
+    const suggestions: string[] = [];
+
+    const settings = cloneRawConfig(spec.metadata) ?? {};
+    const hooksRecord: Record<string, Array<Record<string, unknown>>> = {};
+
+    for (const hook of spec.hooks ?? []) {
+      const event = this.mapHookEventToClaude(hook.event);
+      if (!event) {
+        losses.push({
+          category: "configuration",
+          severity: "warning",
+          description: `Hook event "${hook.event}" cannot be represented in Claude settings.json`,
+          sourceField: `hooks.${hook.event}`,
+        });
+        continue;
+      }
+
+      if (!hooksRecord[event]) {
+        hooksRecord[event] = [];
+      }
+
+      hooksRecord[event]!.push({
+        matcher: hook.matcher ?? this.defaultClaudeMatcher(hook.event),
+        hooks: [
+          {
+            type: "command",
+            command: hook.command,
+            ...(hook.timeout ? { timeout: hook.timeout } : {}),
+          },
+        ],
+      });
+    }
+
+    settings.hooks = hooksRecord;
+    preservedSemantics.push("Hook commands");
+    preservedSemantics.push("Lifecycle event bindings");
+
+    const report: ConversionReport = {
+      ...this.createConversionReport(spec, "claude", startTime),
+      preservedSemantics,
+      losses,
+      warnings,
+      suggestions,
+      fidelityScore: this.calculateFidelity(losses, warnings),
+    };
+
+    return this.createSuccessResult(
+      `${JSON.stringify(settings, null, 2)}\n`,
+      this.getTargetFilename(spec),
+      report,
+    );
+  }
+
+  private mapHookEventToClaude(event: string): string | undefined {
+    switch (event) {
+      case "pre_read_code":
+      case "pre_write_code":
+      case "pre_run_command":
+      case "pre_mcp_tool_use":
+        return "PreToolUse";
+      case "post_read_code":
+      case "post_write_code":
+      case "post_run_command":
+      case "post_mcp_tool_use":
+        return "PostToolUse";
+      case "pre_user_prompt":
+        return "UserPromptSubmit";
+      case "post_cascade_response":
+        return "Stop";
+      case "post_setup_worktree":
+        return "Setup";
+      default:
+        return event;
+    }
+  }
+
+  private defaultClaudeMatcher(event: string): string | undefined {
+    switch (event) {
+      case "pre_read_code":
+      case "post_read_code":
+        return "Read|Glob|Grep";
+      case "pre_write_code":
+      case "post_write_code":
+        return "Edit|Write|MultiEdit";
+      case "pre_run_command":
+      case "post_run_command":
+        return "Bash";
+      case "pre_mcp_tool_use":
+      case "post_mcp_tool_use":
+        return "mcp__";
+      default:
+        return undefined;
+    }
   }
 
   private calculateFidelity(

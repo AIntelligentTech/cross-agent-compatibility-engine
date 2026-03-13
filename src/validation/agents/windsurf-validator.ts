@@ -26,7 +26,7 @@ interface WindsurfFrontmatter {
 export class WindsurfValidator extends BaseValidator {
   readonly agentId = 'windsurf' as const;
   readonly supportedVersions = WINDSURF_VERSIONS;
-  readonly componentTypes: ComponentType[] = ['skill', 'workflow', 'rule'];
+  readonly componentTypes: ComponentType[] = ['skill', 'workflow', 'rule', 'hook'];
 
   validate(
     content: string,
@@ -37,6 +37,10 @@ export class WindsurfValidator extends BaseValidator {
     const issues: ValidationIssue[] = [];
     const warnings: ValidationIssue[] = [];
     const info: ValidationIssue[] = [];
+
+    if (componentType === 'hook' && content.trim().startsWith('{')) {
+      return this.validateHookConfig(content, version);
+    }
 
     try {
       const parsed = matter(content);
@@ -55,6 +59,15 @@ export class WindsurfValidator extends BaseValidator {
           break;
         case 'rule':
           this.validateRule(fm, body, version, issues, warnings, info, options);
+          break;
+        case 'hook':
+          issues.push(
+            this.createIssue(
+              'HOOK_FORMAT',
+              'Windsurf hooks must be provided as hooks.json, not markdown',
+              'error'
+            )
+          );
           break;
         default:
           issues.push(
@@ -303,6 +316,93 @@ export class WindsurfValidator extends BaseValidator {
         )
       );
     }
+  }
+
+  private validateHookConfig(
+    content: string,
+    version: string,
+  ): ValidationResult {
+    const issues: ValidationIssue[] = [];
+    const warnings: ValidationIssue[] = [];
+    const info: ValidationIssue[] = [];
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
+      return this.createErrorResult(
+        'hook',
+        version,
+        [
+          this.createIssue(
+            'PARSE_ERROR',
+            `Failed to parse hooks.json: ${err instanceof Error ? err.message : String(err)}`,
+            'error'
+          ),
+        ],
+        { parseError: true }
+      );
+    }
+
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      issues.push(
+        this.createIssue(
+          'INVALID_ROOT',
+          'Windsurf hooks.json must be a JSON object',
+          'error'
+        )
+      );
+    }
+
+    const root = parsed as Record<string, unknown>;
+    const hooks = root['hooks'];
+
+    if (typeof hooks !== 'object' || hooks === null || Array.isArray(hooks)) {
+      issues.push(
+        this.createIssue(
+          'MISSING_HOOKS',
+          'Windsurf hooks.json must contain a "hooks" object',
+          'error',
+          'hooks'
+        )
+      );
+    } else {
+      for (const [event, entries] of Object.entries(hooks as Record<string, unknown>)) {
+        if (!Array.isArray(entries)) {
+          issues.push(
+            this.createIssue(
+              'INVALID_EVENT_GROUP',
+              `Hook event "${event}" must map to an array`,
+              'error',
+              event
+            )
+          );
+          continue;
+        }
+
+        info.push(
+          this.createIssue(
+            'HOOK_EVENT',
+            `Found ${entries.length} hook(s) for ${event}`,
+            'info',
+            event
+          )
+        );
+      }
+    }
+
+    return {
+      valid: issues.length === 0,
+      agent: this.agentId,
+      componentType: 'hook',
+      version,
+      issues,
+      warnings,
+      info,
+      metadata: {
+        isJsonConfig: true,
+      },
+    };
   }
 
   protected createIssue(

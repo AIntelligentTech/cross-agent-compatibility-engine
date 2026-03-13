@@ -11,6 +11,7 @@ import matter from 'gray-matter';
 import type { AgentId, ComponentSpec, ParseResult, ImportSpec, MemorySection, ScopeLevel } from '../../core/types.js';
 import { DEFAULT_VERSION } from '../../core/constants.js';
 import { createDefaultCapabilities } from '../../core/types.js';
+import { createMetadata } from '../../core/component-preservation.js';
 
 export interface ClaudeMemoryParseContext {
   sourceFile?: string;
@@ -225,10 +226,14 @@ export function parseClaudeMemory(
     },
     body,
     capabilities,
-    metadata: {
-      sourceFile: context?.sourceFile,
-      originalFormat: 'claude.md',
-    },
+    metadata: createMetadata(
+      {
+        sourceFile: context?.sourceFile,
+        originalFormat: 'claude.md',
+        rawFrontmatter: frontmatter,
+        knownKeys: ['description', 'paths'],
+      },
+    ),
   };
   
   // Add memory-specific metadata

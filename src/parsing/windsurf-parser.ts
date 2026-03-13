@@ -10,28 +10,51 @@ import matter from "gray-matter";
 import type {
   ComponentSpec,
   CapabilitySet,
+  HookSpec,
+  RuleActivation,
   SemanticVersion,
 } from "../core/types.js";
 import { createDefaultCapabilities, parseVersion } from "../core/types.js";
+import { createMetadata } from "../core/component-preservation.js";
 import { BaseParser, type ParserOptions } from "./parser-interface.js";
 import type { VersionDetectionResult } from "../versioning/types.js";
 import { detectWindsurfVersion } from "../versioning/version-detector.js";
+import { parseWindsurfHooks } from "./windsurf-hooks-parser.js";
 
 interface WindsurfFrontmatter {
+  name?: string;
   description?: string;
   auto_execution_mode?: number;
   version?: string;
   tags?: string[];
+  trigger?: string;
+  globs?: string | string[];
+  alwaysApply?: boolean;
 }
+
+const WINDSURF_FRONTMATTER_KEYS = [
+  "name",
+  "description",
+  "auto_execution_mode",
+  "version",
+  "tags",
+  "trigger",
+  "globs",
+  "alwaysApply",
+] as const;
 
 export class WindsurfParser extends BaseParser {
   readonly agentId = "windsurf" as const;
 
   canParse(content: string, filename?: string): boolean {
     if (filename) {
+      if (filename.endsWith(".windsurf/hooks.json")) {
+        return true;
+      }
       if (
         filename.includes(".windsurf/workflows/") ||
-        filename.includes(".windsurf/rules/")
+        filename.includes(".windsurf/rules/") ||
+        filename.includes(".windsurf/skills/")
       ) {
         return true;
       }
@@ -68,6 +91,10 @@ export class WindsurfParser extends BaseParser {
     | ReturnType<typeof this.createErrorResult> {
     const warnings: string[] = [];
 
+    if (options?.sourceFile?.endsWith(".windsurf/hooks.json")) {
+      return this.parseHooksConfig(content, options);
+    }
+
     let parsed: matter.GrayMatterFile<string>;
     try {
       parsed = matter(content);
@@ -82,14 +109,12 @@ export class WindsurfParser extends BaseParser {
 
     // Extract ID from filename or body title
     const id =
+      fm.name ??
       this.extractIdFromFilename(options?.sourceFile) ??
       this.extractIdFromBody(body) ??
       "unknown-workflow";
 
-    // Determine component type from path
-    const componentType = options?.sourceFile?.includes("/rules/")
-      ? "rule"
-      : "workflow";
+    const componentType = this.detectComponentType(options?.sourceFile);
 
     // Parse version
     const version: SemanticVersion = fm.version
@@ -134,13 +159,22 @@ export class WindsurfParser extends BaseParser {
       },
       body,
       capabilities,
-      metadata: {
-        sourceFile: options?.sourceFile,
-        originalFormat: `windsurf-${componentType}`,
-        updatedAt: new Date().toISOString(),
-        tags: fm.tags,
-      },
+      metadata: createMetadata(
+        {
+          sourceFile: options?.sourceFile,
+          originalFormat: `windsurf-${componentType}`,
+          rawFrontmatter: fm as Record<string, unknown>,
+          knownKeys: WINDSURF_FRONTMATTER_KEYS,
+        },
+        {
+          tags: fm.tags,
+        },
+      ),
     };
+
+    if (componentType === "rule") {
+      spec.ruleActivation = this.createRuleActivation(fm);
+    }
 
     // Add warnings for Windsurf-specific features
     if (fm.auto_execution_mode !== undefined && fm.auto_execution_mode > 0) {
@@ -152,12 +186,77 @@ export class WindsurfParser extends BaseParser {
     return this.createSuccessResult(spec, warnings);
   }
 
+  private parseHooksConfig(
+    content: string,
+    options?: ParserOptions,
+  ):
+    | ReturnType<typeof this.createSuccessResult>
+    | ReturnType<typeof this.createErrorResult> {
+    const parsed = parseWindsurfHooks(content);
+
+    if (!parsed.success || !parsed.spec) {
+      return this.createErrorResult(parsed.errors);
+    }
+
+    const hooks: HookSpec[] = Object.entries(parsed.spec.hooks).flatMap(
+      ([event, hookEntries]) =>
+        hookEntries.map((hook) => ({
+          event: event as HookSpec["event"],
+          command: hook.command,
+          workingDirectory: hook.working_directory,
+        })),
+    );
+
+    const capabilities = createDefaultCapabilities();
+    capabilities.needsShell = hooks.length > 0;
+    capabilities.providesAnalysis = true;
+
+    const spec: ComponentSpec = {
+      id: "windsurf-hooks",
+      version: { major: 1, minor: 0, patch: 0 },
+      sourceAgent: {
+        id: "windsurf",
+        detectedAt: new Date().toISOString(),
+      },
+      componentType: "hook",
+      category: ["automation", "hooks"],
+      intent: {
+        summary: "Windsurf Cascade hooks configuration",
+        purpose: "Configure lifecycle hooks for Windsurf Cascade",
+      },
+      activation: {
+        mode: "hooked",
+        safetyLevel: "dangerous",
+      },
+      invocation: {
+        userInvocable: false,
+      },
+      execution: {
+        context: "main",
+      },
+      body: content,
+      capabilities,
+      hooks,
+      metadata: createMetadata({
+        sourceFile: options?.sourceFile,
+        originalFormat: "windsurf-hooks",
+        rawConfig: { hooks: parsed.spec.hooks } as Record<string, unknown>,
+        knownKeys: ["hooks"],
+      }),
+    };
+
+    return this.createSuccessResult(spec, parsed.warnings);
+  }
+
   private extractIdFromFilename(filename?: string): string | undefined {
     if (!filename) return undefined;
 
     // Extract from .windsurf/workflows/<name>.md
     const workflowMatch = filename.match(/\.windsurf\/workflows\/([^/]+)\.md$/);
     if (workflowMatch?.[1]) return workflowMatch[1];
+
+    const skillMatch = filename.match(/\.windsurf\/skills\/([^/]+)\/SKILL\.md$/);
+    if (skillMatch?.[1]) return skillMatch[1];
 
     // Extract from .windsurf/rules/<name>.md
     const ruleMatch = filename.match(/\.windsurf\/rules\/([^/]+)\.md$/);
@@ -177,6 +276,41 @@ export class WindsurfParser extends BaseParser {
         .replace(/^-|-$/g, "");
     }
     return undefined;
+  }
+
+  private detectComponentType(
+    filename?: string,
+  ): "skill" | "workflow" | "rule" {
+    if (filename?.includes("/rules/")) {
+      return "rule";
+    }
+
+    if (filename?.includes("/skills/") || filename?.endsWith("/SKILL.md")) {
+      return "skill";
+    }
+
+    return "workflow";
+  }
+
+  private createRuleActivation(fm: WindsurfFrontmatter): RuleActivation {
+    const normalizedGlobs = Array.isArray(fm.globs)
+      ? fm.globs
+      : typeof fm.globs === "string"
+        ? fm.globs
+            .split(",")
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0)
+        : undefined;
+
+    return {
+      globs: normalizedGlobs,
+      alwaysApply:
+        fm.alwaysApply === true ||
+        fm.trigger === "always_on" ||
+        (!normalizedGlobs || normalizedGlobs.length === 0),
+      agentDecided: fm.trigger === "model_decision",
+      scope: "project",
+    };
   }
 
   private mapAutoExecutionMode(
