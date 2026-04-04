@@ -370,6 +370,7 @@ Press Enter to start...
 - **[Changelog](./CHANGELOG.md)** - Release history
 
 ### Research & Analysis
+- **[Compatibility Evolution Timeline](./docs/research/compatibility-evolution-timeline.md)** - How scaffold compatibility changed over time and what that means for CACE today
 - **[Agent Unique Features Matrix](./docs/research/agent-unique-features-matrix.md)** - 30+ unique features across agents
 - **[Product Manager Assessment](./docs/PM_ASSESSMENT_v1.2.0.md)** - Strategic analysis
 

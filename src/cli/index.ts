@@ -278,6 +278,10 @@ program
       console.log(chalk.yellow("⚠️  Note: OpenCode natively supports Claude files. Conversion may not be necessary."));
     }
 
+    if (fromAgent === "universal" && targetAgent === "codex") {
+      console.log(chalk.yellow("⚠️  Note: Codex natively consumes AGENTS.md guidance. Conversion may not be necessary."));
+    }
+
     if (options.verbose) {
       console.log(
         chalk.gray(
@@ -1011,8 +1015,8 @@ program
     console.log();
     console.log(chalk.gray("   Legend: " + chalk.green("≥90% Excellent") + "  " + chalk.yellow("≥80% Good") + "  " + chalk.red("<80% Review needed")));
     console.log(chalk.gray("   * Scores are artifact-aware and this matrix is shown for skill-style conversions"));
-    console.log(chalk.gray("   * OpenCode natively reads Claude files"));
-    console.log(chalk.gray("   * Cursor 2.4+ natively reads Agent Skills, including .claude/skills for compatibility"));
+    console.log(chalk.gray("   * OpenCode supports Claude Code fallbacks for rules and skills"));
+    console.log(chalk.gray("   * Cursor 2.4+ natively reads Agent Skills"));
     console.log();
     console.log(chalk.blue.bold("🧩 Artifact Support Matrix\n"));
     console.log(chalk.gray("   Parse/Render/Validate capability by agent and component type\n"));
@@ -1279,7 +1283,8 @@ function showAgentGuidance(agent: AgentId, componentType: string): void {
     },
     codex: {
       skill: [
-        "Place skills in .codex/skills/<name>/SKILL.md",
+        "Place skills in .agents/skills/<name>/SKILL.md",
+        "Use AGENTS.md or AGENTS.override.md for durable project guidance",
         "Configure MCP servers in config.toml",
         "Set appropriate 'approval_policy'",
         "Choose correct 'sandbox_mode'",
@@ -1366,6 +1371,15 @@ function getScaffoldPaths(agent: AgentId, basePath: string, isUserLevel: boolean
         paths.push(".opencode/commands");
       }
       break;
+    case "codex":
+      if (isUserLevel) {
+        paths.push(join(basePath, ".codex"));
+        paths.push(join(basePath, ".agents", "skills"));
+      } else {
+        paths.push(".agents/skills");
+        paths.push(".codex");
+      }
+      break;
   }
   
   return paths;
@@ -1413,6 +1427,12 @@ function generateExampleComponent(
       if (type === "command") {
         path = join(basePath, ".opencode", "commands", `${name}.md`);
         content = `---\ndescription: ${name} command\n---\n\nExecute ${name} with \$ARGUMENTS.\n`;
+      }
+      break;
+    case "codex":
+      if (type === "skill") {
+        path = join(basePath, ".agents", "skills", name, "SKILL.md");
+        content = `---\nname: ${name}\ndescription: Example ${name} skill\napproval_policy: on-request\nsandbox_mode: workspace-write\n---\n\n# ${name}\n\nAdd Codex skill instructions here.\n`;
       }
       break;
   }
@@ -1474,6 +1494,7 @@ function detectAgentFromPath(path: string): AgentId | null {
   if (path.includes(".cursor")) return "cursor";
   if (path.includes(".windsurf")) return "windsurf";
   if (path.includes(".opencode")) return "opencode";
+  if (path.includes(".agents/skills/")) return "codex";
   if (path.includes(".codex") || path.endsWith("CODEX.md")) return "codex";
   if (path.includes(".gemini") || path.endsWith("GEMINI.md")) return "gemini";
   if (path.includes("AGENTS.md")) return "universal";

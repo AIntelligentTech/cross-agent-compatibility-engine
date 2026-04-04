@@ -45,6 +45,7 @@ export function detectAgent(
     if (filename.includes(".windsurf/")) return "windsurf";
     if (filename.includes(".cursor/")) return "cursor";
     if (filename.includes(".opencode/")) return "opencode";
+    if (filename.includes(".agents/skills/")) return "codex";
     if (filename.includes(".codex/")) return "codex";
     if (filename.endsWith("AGENTS.md")) return "universal";
     if (filename.endsWith("GEMINI.md")) return "gemini";

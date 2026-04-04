@@ -24,11 +24,12 @@ export class OpenCodeRenderer extends BaseRenderer {
 
     // Add type-specific frontmatter
     if (componentType === "skill") {
+      frontmatter.name = spec.id;
       if (spec.execution.subAgent) {
-        frontmatter.agent = spec.execution.subAgent;
+        warnings.push("OpenCode skill frontmatter does not preserve agent delegation; review manually");
       }
       if (spec.execution.context === "fork") {
-        frontmatter.subtask = true;
+        warnings.push("OpenCode skill frontmatter does not preserve subtask isolation; review manually");
       }
     }
 
@@ -97,7 +98,7 @@ export class OpenCodeRenderer extends BaseRenderer {
     
     switch (type) {
       case "skill":
-        return `${spec.id}.md`;
+        return `${spec.id}/SKILL.md`;
       case "command":
         return `${spec.id}.md`;
       case "agent":

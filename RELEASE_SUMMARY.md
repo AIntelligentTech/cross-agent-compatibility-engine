@@ -10,7 +10,7 @@ This release represents a complete refactor of the Cross-Agent Compatibility Eng
 Created comprehensive validators for all 4 supported agents:
 
 **Claude Validator** (`src/validation/agents/claude-validator.ts`)
-- Supports versions: 2.0.0, 2.1.0, 2.1.3
+- Supports versions: 2.0.0, 2.1.0
 - Validates: skills, rules, hooks, memory
 - Features: fork context validation, allowed-tools checking, agent field validation
 

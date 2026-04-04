@@ -34,6 +34,9 @@ export {
   CURSOR_VERSIONS,
   CURSOR_FEATURES,
   CURSOR_BREAKING_CHANGES,
+  CODEX_VERSIONS,
+  CODEX_FEATURES,
+  CODEX_BREAKING_CHANGES,
   getAgentVersions,
   getCurrentVersion,
   getVersion,
@@ -52,6 +55,7 @@ export {
   detectClaudeVersion,
   detectWindsurfVersion,
   detectCursorVersion,
+  detectCodexVersion,
   getVersionDetectionSummary,
 } from "./version-detector.js";
 

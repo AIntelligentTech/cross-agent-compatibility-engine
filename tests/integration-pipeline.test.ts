@@ -279,7 +279,7 @@ Review the repository at $ARGUMENTS and summarize the risks.
       expect(renderer).toBeDefined();
 
       const parseResult = parser!.parse(openCodeSkill, {
-        sourceFile: ".opencode/skills/opencode-review.md",
+        sourceFile: ".opencode/skills/opencode-review/SKILL.md",
       });
       expect(parseResult.success).toBe(true);
 

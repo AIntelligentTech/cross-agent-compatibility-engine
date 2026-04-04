@@ -181,7 +181,7 @@ export interface AgentKnowledge {
 
 const AGENT_KNOWLEDGE_BASE: Record<string, AgentKnowledge> = {
   claude: {
-    latestVersion: "2.1.0",
+    latestVersion: "2.1",
     deprecatedFeatures: [
       "context: window (use context: session instead)",
       "old @import syntax (use new module syntax)",

@@ -586,7 +586,7 @@ function getScaffoldPaths(agent: AgentId, basePath: string, isUserLevel: boolean
     opencode: { project: [".opencode/skills"], user: [".opencode/skills"] },
     cursor: { project: [".cursor/commands"], user: [".cursor/commands"] },
     windsurf: { project: [".windsurf/workflows"], user: [".windsurf/workflows"] },
-    codex: { project: [".codex/skills"], user: [".codex/skills"] },
+    codex: { project: [".agents/skills", ".codex"], user: [".agents/skills", ".codex"] },
     gemini: { project: [".gemini/skills"], user: [".gemini/skills"] },
     universal: { project: ["."], user: ["."] },
     aider: { project: [".aider"], user: [".aider"] },

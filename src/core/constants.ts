@@ -86,7 +86,7 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
     componentTypes: ['skill', 'command', 'memory', 'rule', 'config'],
     fileExtension: '.md',
     configLocations: {
-      project: '.codex/skills',
+      project: '.agents/skills',
       user: '~/.codex',
     },
   },
@@ -210,7 +210,7 @@ export const AGENT_FILE_PATTERNS: Record<AgentId, RegExp[]> = {
     /\.continue\/commands\/.*\.md$/,
   ],
   codex: [
-    /\.codex\/skills\/.*\/SKILL\.md$/,
+    /\.agents\/skills\/.*\/SKILL\.md$/,
     /\.codex\/.*\.md$/,
     /CODEX\.md$/,
   ],
