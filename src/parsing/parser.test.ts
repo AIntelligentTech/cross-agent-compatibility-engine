@@ -225,8 +225,8 @@ Content here.`;
       const result = parser.parse(content);
 
       expect(result.success).toBe(true);
-      // auto_execution_mode: 2 maps to contextual activation
-      expect(["auto", "contextual"]).toContain(result.spec?.activation.mode);
+      // Windsurf workflows are always manual-only; auto_execution_mode is legacy
+      expect(result.spec?.activation.mode).toBe("manual");
     });
 
     test("extracts name from description when no title", () => {

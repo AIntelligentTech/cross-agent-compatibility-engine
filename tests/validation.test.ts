@@ -124,14 +124,13 @@ Body content.
   });
 
   describe("Version support", () => {
-    it("should support versions 2.0.0, 2.1.0, and 2.1.3", () => {
+    it("should support versions 2.0.0 and 2.1.0", () => {
       expect(validator.supportedVersions).toContain("2.0.0");
       expect(validator.supportedVersions).toContain("2.1.0");
-      expect(validator.supportedVersions).toContain("2.1.3");
     });
 
     it("should return latest version", () => {
-      expect(validator.getLatestVersion()).toBe("2.1.3");
+      expect(validator.getLatestVersion()).toBe("2.1.0");
     });
   });
 });

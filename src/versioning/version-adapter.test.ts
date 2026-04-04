@@ -30,7 +30,7 @@ describe("Version Adapter", () => {
 
   describe("getDefaultTargetVersion", () => {
     test("returns current Claude version", () => {
-      expect(getDefaultTargetVersion("claude")).toBe("2.0");
+      expect(getDefaultTargetVersion("claude")).toBe("2.1");
     });
 
     test("returns current Windsurf version", () => {
@@ -87,7 +87,7 @@ Some rules here.
     });
 
     describe("Windsurf adaptations", () => {
-      test("adds auto_execution_mode when upgrading to wave-8+", () => {
+      test("does not add auto_execution_mode when upgrading to wave-8+", () => {
         const content = `---
 description: My workflow
 ---
@@ -95,8 +95,8 @@ description: My workflow
 Content here.
 `;
         const result = adaptVersion("windsurf", content, "wave-1", "wave-8");
-        expect(result.content).toContain("auto_execution_mode:");
-        expect(result.transformations.length).toBeGreaterThan(0);
+        expect(result.content).not.toContain("auto_execution_mode:");
+        expect(result.transformations).toHaveLength(0);
       });
 
       test("preserves existing auto_execution_mode", () => {

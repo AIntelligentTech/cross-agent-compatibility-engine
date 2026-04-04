@@ -17,6 +17,7 @@ import {
   CLAUDE_VERSIONS,
   WINDSURF_VERSIONS,
   CURSOR_VERSIONS,
+  CODEX_VERSIONS,
 } from "./version-catalog.js";
 
 describe("Version Catalog", () => {
@@ -43,6 +44,12 @@ describe("Version Catalog", () => {
       const versions = getAgentVersions("gemini");
       expect(versions).toEqual([]);
     });
+
+    test("returns Codex versions", () => {
+      const versions = getAgentVersions("codex");
+      expect(versions.length).toBeGreaterThan(0);
+      expect(versions[0]?.agent).toBe("codex");
+    });
   });
 
   describe("getCurrentVersion", () => {
@@ -50,7 +57,7 @@ describe("Version Catalog", () => {
       const current = getCurrentVersion("claude");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("2.0");
+      expect(current?.version).toBe("2.1");
     });
 
     test("returns current Windsurf version", () => {
@@ -65,6 +72,13 @@ describe("Version Catalog", () => {
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
       expect(current?.version).toBe("2.4");
+    });
+
+    test("returns current Codex version", () => {
+      const current = getCurrentVersion("codex");
+      expect(current).toBeDefined();
+      expect(current?.isCurrent).toBe(true);
+      expect(current?.version).toBe("1.2");
     });
   });
 
@@ -99,6 +113,12 @@ describe("Version Catalog", () => {
       const features = getAgentFeatures("cursor");
       expect(features.length).toBeGreaterThan(0);
       expect(features.some((f) => f.id === "cursor-commands")).toBe(true);
+    });
+
+    test("returns Codex features", () => {
+      const features = getAgentFeatures("codex");
+      expect(features.length).toBeGreaterThan(0);
+      expect(features.some((f) => f.id === "codex-agent-skills")).toBe(true);
     });
   });
 
@@ -145,6 +165,18 @@ describe("Version Catalog", () => {
         true,
       ); // deprecated but not removed
     });
+
+    test("codex-agent-skills available after introduction", () => {
+      expect(isFeatureAvailable("codex", "codex-agent-skills", "1.0")).toBe(
+        false,
+      );
+      expect(isFeatureAvailable("codex", "codex-agent-skills", "1.1")).toBe(
+        true,
+      );
+      expect(isFeatureAvailable("codex", "codex-agent-skills", "1.2")).toBe(
+        true,
+      );
+    });
   });
 
   describe("getBreakingChanges", () => {
@@ -158,6 +190,14 @@ describe("Version Catalog", () => {
       const changes = getBreakingChanges("cursor");
       expect(changes.length).toBeGreaterThan(0);
       expect(changes.some((c) => c.id === "cursor-rules-migration")).toBe(true);
+    });
+
+    test("returns Codex breaking changes", () => {
+      const changes = getBreakingChanges("codex");
+      expect(changes.length).toBeGreaterThan(0);
+      expect(
+        changes.some((c) => c.id === "codex-custom-prompts-deprecated"),
+      ).toBe(true);
     });
   });
 
@@ -183,6 +223,13 @@ describe("Version Catalog", () => {
       const changes = getBreakingChangesBetween("cursor", "0.34", "1.7");
       expect(changes.some((c) => c.id === "cursor-rules-migration")).toBe(true);
     });
+
+    test("returns breaking changes for Codex 1.0 to 1.2", () => {
+      const changes = getBreakingChangesBetween("codex", "1.0", "1.2");
+      expect(
+        changes.some((c) => c.id === "codex-custom-prompts-deprecated"),
+      ).toBe(true);
+    });
   });
 
   describe("compareVersions", () => {
@@ -202,6 +249,11 @@ describe("Version Catalog", () => {
       expect(compareVersions("windsurf", "wave-1", "wave-8")).toBe(-1);
       expect(compareVersions("windsurf", "wave-13", "wave-8")).toBe(1);
     });
+
+    test("works with Codex versions", () => {
+      expect(compareVersions("codex", "1.0", "1.1")).toBe(-1);
+      expect(compareVersions("codex", "1.2", "1.1")).toBe(1);
+    });
   });
 
   describe("getVersionSummary", () => {
@@ -209,7 +261,7 @@ describe("Version Catalog", () => {
       const summary = getVersionSummary("claude");
       expect(summary.agent).toBe("claude");
       expect(summary.versions.length).toBe(CLAUDE_VERSIONS.length);
-      expect(summary.currentVersion).toBe("2.0");
+      expect(summary.currentVersion).toBe("2.1");
       expect(summary.totalFeatures).toBeGreaterThan(0);
       expect(summary.totalBreakingChanges).toBeGreaterThan(0);
     });
@@ -218,6 +270,13 @@ describe("Version Catalog", () => {
       const summary = getVersionSummary("windsurf");
       expect(summary.agent).toBe("windsurf");
       expect(summary.currentVersion).toBe("wave-13");
+    });
+
+    test("returns Codex version summary", () => {
+      const summary = getVersionSummary("codex");
+      expect(summary.agent).toBe("codex");
+      expect(summary.currentVersion).toBe("1.2");
+      expect(summary.versions.length).toBe(CODEX_VERSIONS.length);
     });
   });
 
@@ -252,14 +311,25 @@ describe("Version Catalog", () => {
       }
     });
 
+    test("all Codex versions have required fields", () => {
+      for (const version of CODEX_VERSIONS) {
+        expect(version.agent).toBe("codex");
+        expect(version.version).toBeDefined();
+        expect(typeof version.isCurrent).toBe("boolean");
+        expect(typeof version.isSupported).toBe("boolean");
+      }
+    });
+
     test("exactly one current version per agent", () => {
       const claudeCurrent = CLAUDE_VERSIONS.filter((v) => v.isCurrent);
       const windsurfCurrent = WINDSURF_VERSIONS.filter((v) => v.isCurrent);
       const cursorCurrent = CURSOR_VERSIONS.filter((v) => v.isCurrent);
+      const codexCurrent = CODEX_VERSIONS.filter((v) => v.isCurrent);
 
       expect(claudeCurrent.length).toBe(1);
       expect(windsurfCurrent.length).toBe(1);
       expect(cursorCurrent.length).toBe(1);
+      expect(codexCurrent.length).toBe(1);
     });
   });
 });

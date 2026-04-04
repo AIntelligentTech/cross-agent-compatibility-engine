@@ -10,6 +10,7 @@ describe("Codex Parser", () => {
 
   describe("canParse", () => {
     it("should detect Codex skills by filename", () => {
+      expect(parser.canParse("", ".agents/skills/my-skill/SKILL.md")).toBe(true);
       expect(parser.canParse("", ".codex/skills/my-skill/SKILL.md")).toBe(true);
       expect(parser.canParse("", ".codex/commands/my-command.md")).toBe(true);
     });
@@ -65,6 +66,24 @@ Review code for quality and best practices.`;
         expect(result.spec.componentType).toBe("skill");
         expect(result.spec.intent.summary).toBe("Review code for quality");
         expect(result.spec.sourceAgent?.id).toBe("codex");
+      }
+    });
+
+    it("should derive skill id from .agents/skills path", () => {
+      const content = `---
+name: code-reviewer
+description: Review code for quality
+---
+
+Review code for quality and best practices.`;
+
+      const result = parser.parse(content, {
+        sourceFile: ".agents/skills/code-reviewer/SKILL.md",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.spec.id).toBe("code-reviewer");
+        expect(result.spec.componentType).toBe("skill");
       }
     });
 

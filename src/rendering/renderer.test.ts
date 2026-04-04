@@ -6,6 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { ClaudeRenderer } from "./claude-renderer.js";
 import { WindsurfRenderer } from "./windsurf-renderer.js";
 import { CursorRenderer } from "./cursor-renderer.js";
+import { OpenCodeRenderer } from "./opencode-renderer.js";
 import { renderComponent, getTargetPath } from "./renderer-factory.js";
 import type { ComponentSpec } from "../core/types.js";
 
@@ -522,6 +523,40 @@ describe("CursorRenderer", () => {
       const dir = renderer.getTargetDirectory(spec);
 
       expect(dir).toBe(".cursor/commands");
+    });
+  });
+});
+
+describe("OpenCodeRenderer", () => {
+  const renderer = new OpenCodeRenderer();
+
+  describe("render", () => {
+    test("renders skill spec to OpenCode skill format", () => {
+      const spec = createTestSpec();
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("name: test-component");
+      expect(result.content).toContain("description: A test component for unit testing");
+      expect(result.content).toContain("This is the body content");
+    });
+  });
+
+  describe("getTargetFilename", () => {
+    test("generates SKILL.md filename for skills", () => {
+      const spec = createTestSpec();
+      const filename = renderer.getTargetFilename(spec);
+
+      expect(filename).toBe("test-component/SKILL.md");
+    });
+  });
+
+  describe("getTargetDirectory", () => {
+    test("returns OpenCode skills directory for skills", () => {
+      const spec = createTestSpec();
+      const dir = renderer.getTargetDirectory(spec);
+
+      expect(dir).toBe(".opencode/skills");
     });
   });
 });

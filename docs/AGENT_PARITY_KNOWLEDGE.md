@@ -1,8 +1,15 @@
 # Agent Parity Knowledge
 
-**Document Version:** 1.1.0  
+**Document Version:** 1.2.0  
 **Created:** 2026-01-30  
+**Updated:** 2026-03-13  
 **Purpose:** Comprehensive analysis of conversion parity issues across AI coding agents
+
+This document focuses on the current parity gaps and conversion consequences. For
+the historical evolution of compatibility over time, including when the major
+turning points occurred across Claude Code, Windsurf, Cursor, Codex, OpenCode,
+Gemini CLI, and the `AGENTS.md` ecosystem, see
+`docs/research/compatibility-evolution-timeline.md`.
 
 ---
 

@@ -5,6 +5,9 @@
 This document synthesizes research on agent artifact formats across major AI
 coding assistants as of January 2026.
 
+For the historical view of how this compatibility surface evolved over time, see
+`docs/research/compatibility-evolution-timeline.md`.
+
 ---
 
 ## 1. Artifact Type Taxonomy

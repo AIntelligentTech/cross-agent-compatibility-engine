@@ -195,6 +195,16 @@ export class CodexValidator extends BaseValidator {
             `Valid values: ${validPolicies.join(", ")}`
           )
         );
+      } else if (fm.approval_policy === "on-failure") {
+        warnings.push(
+          this.createIssue(
+            "DEPRECATED_APPROVAL_POLICY",
+            'approval_policy "on-failure" is deprecated',
+            "warning",
+            "approval_policy",
+            "Use on-request for interactive runs or never for non-interactive runs"
+          )
+        );
       }
     }
 

@@ -7,9 +7,9 @@ import matter from 'gray-matter';
 import { BaseValidator, type ValidationResult, type ValidationIssue, type ValidatorOptions } from '../validator-framework.js';
 import type { ComponentType } from '../../core/types.js';
 
-// Version 2.1.0 - January 2026 - Skills/commands unification, context: fork
-// Version 2.0.0 - 2025 - Initial skills system
-const CLAUDE_VERSIONS = ['2.0.0', '2.1.0', '2.1.3'];
+// Version 2.1 - February 2026 - fork context, /fork command, 1M context
+// Version 2.0 - December 2025 - Rules dir, background agents
+const CLAUDE_VERSIONS = ['2.0.0', '2.1.0'];
 
 interface ClaudeFrontmatter {
   name?: string;

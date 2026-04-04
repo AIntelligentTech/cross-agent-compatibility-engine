@@ -47,8 +47,8 @@ export const CLAUDE_FEATURES: FeatureFlag[] = [
   {
     id: "claude-fork-context",
     name: "Fork Context",
-    description: "Fork execution context for isolated runs",
-    introducedIn: "1.0",
+    description: "Fork execution context for isolated runs (/fork command, later renamed /branch)",
+    introducedIn: "2.1",
   },
   {
     id: "claude-allowed-tools",
@@ -110,7 +110,6 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
     featuresIntroduced: [
       "claude-skills",
       "claude-commands",
-      "claude-fork-context",
       "claude-allowed-tools",
       "claude-memory-imports",
     ],
@@ -167,7 +166,7 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
     version: "2.0",
     semver: { major: 2, minor: 0, patch: 0 },
     releaseDate: "2025-12-01",
-    isCurrent: true,
+    isCurrent: false,
     isSupported: true,
     featuresIntroduced: ["claude-rules", "claude-background-agents"],
     featuresDeprecated: [],
@@ -178,6 +177,26 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
         type: "file_pattern",
         pattern: "\\.claude/rules/.*\\.md$",
         weight: 10,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "claude",
+    version: "2.1",
+    semver: { major: 2, minor: 1, patch: 0 },
+    releaseDate: "2026-02-18",
+    isCurrent: true,
+    isSupported: true,
+    featuresIntroduced: ["claude-fork-context"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "field_present",
+        field: "context",
+        weight: 6,
         indicatesVersionOrLater: true,
       },
     ],
@@ -370,7 +389,7 @@ export const CURSOR_FEATURES: FeatureFlag[] = [
     id: "cursor-skills",
     name: "Agent Skills",
     description:
-      "Agent Skills standard (.cursor/skills/<name>/SKILL.md) including Claude compatibility directories (.claude/skills)",
+      "Agent Skills standard (.cursor/skills/<name>/SKILL.md)",
     introducedIn: "2.4",
   },
   {
@@ -512,7 +531,7 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
     agent: "cursor",
     version: "2.4",
     semver: { major: 2, minor: 4, patch: 0 },
-    releaseDate: "2026-01-15",
+    releaseDate: "2026-01-22",
     isCurrent: true,
     isSupported: true,
     featuresIntroduced: ["cursor-skills"],
@@ -526,10 +545,117 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
         weight: 10,
         indicatesVersionOrLater: true,
       },
+    ],
+  },
+];
+
+// ============================================================================
+// Codex Versions
+// ============================================================================
+
+export const CODEX_FEATURES: FeatureFlag[] = [
+  {
+    id: "codex-ga",
+    name: "Feature Maturity",
+    description: "Codex matures as a stable product surface (npm versioning remains 0.x)",
+    introducedIn: "1.0",
+  },
+  {
+    id: "codex-agent-skills",
+    name: "Agent Skills",
+    description: "Skill definitions in .agents/skills/<name>/SKILL.md",
+    introducedIn: "1.1",
+  },
+  {
+    id: "codex-agents-guidance",
+    name: "AGENTS.md Guidance Chain",
+    description: "Hierarchical project guidance via AGENTS.md and AGENTS.override.md",
+    introducedIn: "1.2",
+  },
+  {
+    id: "codex-team-config",
+    name: "Team Config",
+    description: "Shared configuration via Codex home and team-level settings",
+    introducedIn: "1.2",
+  },
+];
+
+export const CODEX_BREAKING_CHANGES: BreakingChange[] = [
+  {
+    id: "codex-custom-prompts-deprecated",
+    type: "behavior_changed",
+    version: "1.2",
+    description: "Custom prompts are deprecated in favor of AGENTS.md guidance and team config",
+    affected: "custom prompts",
+    migration:
+      "Move durable project guidance into AGENTS.md or AGENTS.override.md and use team config for shared defaults",
+    autoMigratable: false,
+  },
+];
+
+export const CODEX_VERSIONS: VersionCatalogEntry[] = [
+  {
+    agent: "codex",
+    version: "1.0",
+    semver: { major: 1, minor: 0, patch: 0 },
+    releaseDate: "2025-10-01",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["codex-ga"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "field_present",
+        field: "approval_policy",
+        weight: 4,
+        indicatesVersionOrLater: true,
+      },
+      {
+        type: "field_present",
+        field: "sandbox_mode",
+        weight: 4,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "codex",
+    version: "1.1",
+    semver: { major: 1, minor: 1, patch: 0 },
+    releaseDate: "2025-12-01",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["codex-agent-skills"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
       {
         type: "file_pattern",
-        pattern: "\\.claude/skills/[^/]+/SKILL\\.md$",
-        weight: 6,
+        pattern: "\\.agents/skills/[^/]+/SKILL\\.md$",
+        weight: 10,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "codex",
+    version: "1.2",
+    semver: { major: 1, minor: 2, patch: 0 },
+    releaseDate: "2026-01-01",
+    isCurrent: true,
+    isSupported: true,
+    featuresIntroduced: ["codex-agents-guidance", "codex-team-config"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: ["codex-custom-prompts-deprecated"],
+    detectionMarkers: [
+      {
+        type: "file_pattern",
+        pattern: "(^|/)AGENTS(?:\\.override)?\\.md$",
+        weight: 8,
         indicatesVersionOrLater: true,
       },
     ],
@@ -544,14 +670,15 @@ const ALL_VERSIONS: VersionCatalogEntry[] = [
   ...CLAUDE_VERSIONS,
   ...WINDSURF_VERSIONS,
   ...CURSOR_VERSIONS,
+  ...CODEX_VERSIONS,
 ];
 
 const ALL_FEATURES: Record<AgentId, FeatureFlag[]> = {
   claude: CLAUDE_FEATURES,
   windsurf: WINDSURF_FEATURES,
   cursor: CURSOR_FEATURES,
+  codex: CODEX_FEATURES,
   gemini: [],
-  codex: [],
   universal: [],
   opencode: [],
   aider: [],
@@ -562,8 +689,8 @@ const ALL_BREAKING_CHANGES: Record<AgentId, BreakingChange[]> = {
   claude: CLAUDE_BREAKING_CHANGES,
   windsurf: WINDSURF_BREAKING_CHANGES,
   cursor: CURSOR_BREAKING_CHANGES,
+  codex: CODEX_BREAKING_CHANGES,
   gemini: [],
-  codex: [],
   universal: [],
   opencode: [],
   aider: [],

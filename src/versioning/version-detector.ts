@@ -229,11 +229,11 @@ export function detectWindsurfVersion(
   // Additional Windsurf-specific heuristics
   const fm = context.frontmatter;
 
-  // Check for auto_execution_mode (wave-8+)
+  // Check for legacy auto_execution_mode (wave-8+ heuristic)
   if ("auto_execution_mode" in fm) {
     const wave8 = scores.get("wave-8")!;
     wave8.score += 5;
-    wave8.markers.push('Has "auto_execution_mode" field (wave-8+ feature)');
+    wave8.markers.push('Has legacy "auto_execution_mode" field (wave-8+ heuristic)');
   }
 
   // Check for .windsurf/skills/ path pattern (wave-10+)
@@ -356,6 +356,87 @@ export function detectCursorVersion(
   };
 }
 
+export function detectCodexVersion(
+  content: string,
+  filePath?: string,
+): VersionDetectionResult {
+  const context = createDetectionContext(content, filePath);
+  const versions = getAgentVersions("codex");
+  const scores: Map<string, { score: number; markers: string[] }> = new Map();
+
+  for (const version of versions) {
+    scores.set(version.version, { score: 0, markers: [] });
+  }
+
+  for (const version of versions) {
+    const versionScore = scores.get(version.version);
+    if (!versionScore) {
+      continue;
+    }
+
+    for (const marker of version.detectionMarkers) {
+      const result = evaluateMarker(marker, context);
+      if (result.matched) {
+        versionScore.score += marker.weight;
+        versionScore.markers.push(result.description);
+      }
+    }
+  }
+
+  if (filePath?.includes(".agents/skills/")) {
+    const v11 = scores.get("1.1");
+    if (v11) {
+      v11.score += 8;
+      v11.markers.push("File in .agents/skills/ directory (1.1+ feature)");
+    }
+  }
+
+  if (
+    filePath?.endsWith("AGENTS.md") ||
+    filePath?.endsWith("AGENTS.override.md")
+  ) {
+    const v12 = scores.get("1.2");
+    if (v12) {
+      v12.score += 7;
+      v12.markers.push("Uses AGENTS.md guidance chain (1.2+ feature)");
+    }
+  }
+
+  if (
+    "approval_policy" in context.frontmatter ||
+    "sandbox_mode" in context.frontmatter
+  ) {
+    const v10 = scores.get("1.0");
+    if (v10) {
+      v10.score += 4;
+      v10.markers.push(
+        'Has Codex execution settings like "approval_policy" or "sandbox_mode"',
+      );
+    }
+  }
+
+  let bestVersion = getCurrentVersion("codex")?.version ?? "1.2";
+  let bestScore = 0;
+  let bestMarkers: string[] = [];
+
+  for (const [version, data] of scores) {
+    if (data.score > bestScore) {
+      bestScore = data.score;
+      bestVersion = version;
+      bestMarkers = data.markers;
+    }
+  }
+
+  const confidence = bestScore > 0 ? Math.min(100, bestScore * 8 + 35) : 35;
+
+  return {
+    version: bestVersion,
+    confidence: Math.round(confidence),
+    matchedMarkers: bestMarkers,
+    isDefinitive: bestScore >= 8,
+  };
+}
+
 // ============================================================================
 // Main Detection Function
 // ============================================================================
@@ -375,6 +456,8 @@ export function detectVersion(
       return detectWindsurfVersion(content, filePath);
     case "cursor":
       return detectCursorVersion(content, filePath);
+    case "codex":
+      return detectCodexVersion(content, filePath);
     default:
       // For agents without version catalogs, return current version with low confidence
       const current = getCurrentVersion(agent);
