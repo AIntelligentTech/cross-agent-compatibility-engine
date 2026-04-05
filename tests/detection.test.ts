@@ -270,4 +270,40 @@ Some instructions.
     const agent = detectAgent(content, "CODEX.md");
     expect(agent).toBe("codex");
   });
+
+  test("should detect Codex from .agents/skills/ path", () => {
+    const content = `---
+name: my-skill
+description: A skill
+---
+
+Body content.
+`;
+    const agent = detectAgent(content, ".agents/skills/my-skill/SKILL.md");
+    expect(agent).toBe("codex");
+  });
+
+  test("should detect Gemini from .gemini/ path", () => {
+    const content = `---
+name: gemini-skill
+description: A Gemini skill
+---
+
+Body content.
+`;
+    const agent = detectAgent(content, ".gemini/skills/gemini-skill/SKILL.md");
+    expect(agent).toBe("gemini");
+  });
+
+  test("should detect Gemini from .gemini/agents/ path", () => {
+    const content = `---
+name: codebase-agent
+description: Investigate the codebase
+---
+
+Body.
+`;
+    const agent = detectAgent(content, ".gemini/agents/codebase-agent.md");
+    expect(agent).toBe("gemini");
+  });
 });

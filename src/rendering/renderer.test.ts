@@ -6,6 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { ClaudeRenderer } from "./claude-renderer.js";
 import { WindsurfRenderer } from "./windsurf-renderer.js";
 import { CursorRenderer } from "./cursor-renderer.js";
+import { OpenCodeRenderer } from "./opencode-renderer.js";
 import { renderComponent, getTargetPath } from "./renderer-factory.js";
 import type { ComponentSpec } from "../core/types.js";
 
@@ -574,6 +575,61 @@ describe("Renderer Factory", () => {
       const path = getTargetPath(spec, "cursor");
 
       expect(path).toContain(".cursor");
+    });
+  });
+});
+
+describe("OpenCodeRenderer", () => {
+  const renderer = new OpenCodeRenderer();
+
+  describe("getTargetFilename", () => {
+    test("generates <name>/SKILL.md filename for skills (Agent Skills standard)", () => {
+      const spec = createTestSpec();
+      const filename = renderer.getTargetFilename(spec);
+
+      expect(filename).toBe("test-component/SKILL.md");
+    });
+
+    test("generates flat .md filename for commands", () => {
+      const spec = createTestSpec({ componentType: "command" });
+      const filename = renderer.getTargetFilename(spec);
+
+      expect(filename).toBe("test-component.md");
+    });
+  });
+
+  describe("getTargetDirectory", () => {
+    test("returns .opencode/skills for skills", () => {
+      const spec = createTestSpec();
+      const dir = renderer.getTargetDirectory(spec);
+
+      expect(dir).toBe(".opencode/skills");
+    });
+
+    test("returns .opencode/commands for commands", () => {
+      const spec = createTestSpec({ componentType: "command" });
+      const dir = renderer.getTargetDirectory(spec);
+
+      expect(dir).toBe(".opencode/commands");
+    });
+  });
+
+  describe("render", () => {
+    test("renders basic spec to OpenCode format with description", () => {
+      const spec = createTestSpec();
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("description:");
+      expect(result.content).toContain("A test component for unit testing");
+    });
+
+    test("preserves body content", () => {
+      const spec = createTestSpec();
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("This is the body content");
     });
   });
 });

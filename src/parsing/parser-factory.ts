@@ -45,10 +45,13 @@ export function detectAgent(
     if (filename.includes(".windsurf/")) return "windsurf";
     if (filename.includes(".cursor/")) return "cursor";
     if (filename.includes(".opencode/")) return "opencode";
-    if (filename.includes(".codex/")) return "codex";
-    if (filename.endsWith("AGENTS.md")) return "universal";
+    if (filename.includes(".gemini/")) return "gemini";
     if (filename.endsWith("GEMINI.md")) return "gemini";
+    // .agents/skills/ is the Codex native path — must check before generic AGENTS.md
+    if (filename.includes(".agents/skills/")) return "codex";
+    if (filename.includes(".codex/")) return "codex";
     if (filename.endsWith("CODEX.md")) return "codex";
+    if (filename.endsWith("AGENTS.md")) return "universal";
   }
 
   // Try parsers in priority order (specific formats before generic)

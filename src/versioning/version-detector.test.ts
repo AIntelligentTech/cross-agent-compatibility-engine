@@ -174,9 +174,8 @@ Content.
     });
 
     test("returns default for unsupported agent", () => {
-      const result = detectVersion("gemini", "content");
-      // gemini now has a catalog; falls back to current version "0.2"
-      expect(result.version).toBe("0.2");
+// "aider" has no dedicated detector, falls through to default
+      const result = detectVersion("aider", "content");
       expect(result.confidence).toBe(30);
     });
   });

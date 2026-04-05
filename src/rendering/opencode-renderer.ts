@@ -94,10 +94,11 @@ export class OpenCodeRenderer extends BaseRenderer {
 
   getTargetFilename(spec: ComponentSpec): string {
     const type = this.mapComponentType(spec.componentType);
-    
+
     switch (type) {
       case "skill":
-        return `${spec.id}.md`;
+        // Agent Skills standard: <name>/SKILL.md
+        return `${spec.id}/SKILL.md`;
       case "command":
         return `${spec.id}.md`;
       case "agent":
@@ -109,7 +110,7 @@ export class OpenCodeRenderer extends BaseRenderer {
 
   getTargetDirectory(spec: ComponentSpec): string {
     const type = this.mapComponentType(spec.componentType);
-    
+
     switch (type) {
       case "skill":
         return ".opencode/skills";

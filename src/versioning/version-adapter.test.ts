@@ -30,7 +30,7 @@ describe("Version Adapter", () => {
 
   describe("getDefaultTargetVersion", () => {
     test("returns current Claude version", () => {
-      expect(getDefaultTargetVersion("claude")).toBe("2.1");
+expect(getDefaultTargetVersion("claude")).toBe("2.1");
     });
 
     test("returns current Windsurf version", () => {

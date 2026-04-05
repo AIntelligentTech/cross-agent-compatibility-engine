@@ -321,8 +321,10 @@ function detectTargetAgent(path: string, content?: string): AgentId {
   if (path.includes(".cursor")) return "cursor";
   if (path.includes(".windsurf")) return "windsurf";
   if (path.includes(".opencode")) return "opencode";
-  if (path.includes(".codex") || path.endsWith("CODEX.md")) return "codex";
   if (path.includes(".gemini") || path.endsWith("GEMINI.md")) return "gemini";
+  // .agents/skills/ is primarily the Codex native path — check before .codex
+  if (path.includes(".agents/skills/")) return "codex";
+  if (path.includes(".codex") || path.endsWith("CODEX.md")) return "codex";
   if (path.endsWith("AGENTS.md")) return "universal";
   return "claude";
 }
@@ -334,8 +336,8 @@ function findOriginalFile(convertedPath: string, sourceAgent: AgentId): string |
     cursor: [".cursor/rules/", ".cursor/commands/", ".cursor/"],
     windsurf: [".windsurf/skills/", ".windsurf/workflows/", ".windsurf/rules/"],
     opencode: [".opencode/skills/", ".opencode/commands/", ".opencode/agents/"],
-    gemini: [".gemini/"],
-    codex: [".codex/skills/", ".codex/commands/", ".codex/rules/"],
+    gemini: [".gemini/skills/", ".gemini/agents/"],
+    codex: [".agents/skills/"],
     aider: [".aider/"],
     universal: ["AGENTS.md"],
     continue: [".continue/"]

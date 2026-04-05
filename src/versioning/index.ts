@@ -52,6 +52,9 @@ export {
   detectClaudeVersion,
   detectWindsurfVersion,
   detectCursorVersion,
+  detectCodexVersion,
+  detectGeminiVersion,
+  detectOpenCodeVersion,
   getVersionDetectionSummary,
 } from "./version-detector.js";
 
