@@ -30,19 +30,19 @@ describe("Version Adapter", () => {
 
   describe("getDefaultTargetVersion", () => {
     test("returns current Claude version", () => {
-      expect(getDefaultTargetVersion("claude")).toBe("2.0");
+      expect(getDefaultTargetVersion("claude")).toBe("2.1");
     });
 
     test("returns current Windsurf version", () => {
-      expect(getDefaultTargetVersion("windsurf")).toBe("wave-13");
+      expect(getDefaultTargetVersion("windsurf")).toBe("wave-14");
     });
 
     test("returns current Cursor version", () => {
-      expect(getDefaultTargetVersion("cursor")).toBe("2.4");
+      expect(getDefaultTargetVersion("cursor")).toBe("3.0");
     });
 
-    test("returns fallback for unknown agent", () => {
-      expect(getDefaultTargetVersion("gemini")).toBe("1.0");
+    test("returns current Gemini version", () => {
+      expect(getDefaultTargetVersion("gemini")).toBe("0.2");
     });
   });
 

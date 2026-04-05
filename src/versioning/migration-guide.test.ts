@@ -187,9 +187,11 @@ describe("Migration Guide", () => {
       expect(path1to2?.breakingChanges).toBeGreaterThan(0);
     });
 
-    test("returns empty for agent with no versions", () => {
+    test("returns paths for gemini (now has catalog)", () => {
       const paths = getAvailableMigrationPaths("gemini");
-      expect(paths.length).toBe(0);
+      // gemini has versions 0.1 and 0.2, so one migration path exists
+      expect(paths.length).toBeGreaterThan(0);
+      expect(paths.some((p) => p.from === "0.1" && p.to === "0.2")).toBe(true);
     });
   });
 

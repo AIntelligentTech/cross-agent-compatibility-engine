@@ -135,7 +135,7 @@ Rule content.
 `;
       const result = detectCursorVersion(content);
       // globs is a 1.7+ feature, so version should be 1.7 or later
-      expect(["1.7", "2.2", "2.3", "2.4"]).toContain(result.version);
+      expect(["1.7", "2.2", "2.3", "2.4", "2.5", "3.0"]).toContain(result.version);
     });
   });
 
@@ -175,7 +175,8 @@ Content.
 
     test("returns default for unsupported agent", () => {
       const result = detectVersion("gemini", "content");
-      expect(result.version).toBe("1.0");
+      // gemini now has a catalog; falls back to current version "0.2"
+      expect(result.version).toBe("0.2");
       expect(result.confidence).toBe(30);
     });
   });
