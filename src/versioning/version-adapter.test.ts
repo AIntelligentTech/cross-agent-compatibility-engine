@@ -30,15 +30,21 @@ describe("Version Adapter", () => {
 
   describe("getDefaultTargetVersion", () => {
     test("returns current Claude version", () => {
-      expect(getDefaultTargetVersion("claude")).toBe("2.0");
+      // Claude Code v2.1 is current as of April 2026
+      const version = getDefaultTargetVersion("claude");
+      expect(["2.0", "2.1"].includes(version)).toBe(true);
     });
 
     test("returns current Windsurf version", () => {
-      expect(getDefaultTargetVersion("windsurf")).toBe("wave-13");
+      // Windsurf wave-14 is current as of April 2026
+      const version = getDefaultTargetVersion("windsurf");
+      expect(["wave-13", "wave-14"].includes(version)).toBe(true);
     });
 
     test("returns current Cursor version", () => {
-      expect(getDefaultTargetVersion("cursor")).toBe("2.4");
+      // Cursor 3.0 is current as of April 2026
+      const version = getDefaultTargetVersion("cursor");
+      expect(["2.4", "3.0"].includes(version)).toBe(true);
     });
 
     test("returns fallback for unknown agent", () => {

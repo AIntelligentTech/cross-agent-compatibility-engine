@@ -184,15 +184,31 @@ export class CodexValidator extends BaseValidator {
 
     // Validate approval policy
     if (fm.approval_policy) {
-      const validPolicies = ["untrusted", "on-failure", "on-request", "never"];
-      if (!validPolicies.includes(fm.approval_policy)) {
+      // on-failure is deprecated in Codex CLI v0.118+; granular is an object type handled separately
+      const validPolicies = ["untrusted", "on-request", "never"];
+      const deprecatedPolicies = ["on-failure"];
+
+      if (deprecatedPolicies.includes(fm.approval_policy)) {
+        warnings.push(
+          this.createIssue(
+            "DEPRECATED_APPROVAL_POLICY",
+            `approval_policy "${fm.approval_policy}" is deprecated in Codex CLI v0.118+`,
+            "warning",
+            "approval_policy",
+            `Use one of: ${validPolicies.join(", ")} or a granular object`
+          )
+        );
+      } else if (
+        !validPolicies.includes(fm.approval_policy) &&
+        typeof fm.approval_policy === "string"
+      ) {
         issues.push(
           this.createIssue(
             "INVALID_APPROVAL_POLICY",
             `Invalid approval_policy: ${fm.approval_policy}`,
             "error",
             "approval_policy",
-            `Valid values: ${validPolicies.join(", ")}`
+            `Valid values: ${validPolicies.join(", ")} or a granular object`
           )
         );
       }

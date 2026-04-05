@@ -174,7 +174,8 @@ Content.
     });
 
     test("returns default for unsupported agent", () => {
-      const result = detectVersion("gemini", "content");
+      // "aider" has no dedicated detector — falls through to default
+      const result = detectVersion("aider", "content");
       expect(result.version).toBe("1.0");
       expect(result.confidence).toBe(30);
     });

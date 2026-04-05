@@ -194,7 +194,8 @@ export class CodexRenderer extends BaseRenderer {
   getTargetDirectory(spec: ComponentSpec): string {
     switch (spec.componentType) {
       case "skill":
-        return `.codex/skills/${spec.id}`;
+        // Codex CLI v0.118+ native path is .agents/skills/<id>/
+        return `.agents/skills/${spec.id}`;
       case "command":
         return `.codex/commands`;
       case "rule":
