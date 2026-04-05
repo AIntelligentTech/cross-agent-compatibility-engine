@@ -426,18 +426,19 @@ export function detectCodexVersion(
   filePath?: string,
 ): VersionDetectionResult {
   const context = createDetectionContext(content, filePath);
+  const normalizedPath = filePath?.replace(/\\/g, "/");
   const fm = context.frontmatter;
   const matchedMarkers: string[] = [];
   let score = 0;
 
   // Primary path marker: .agents/skills/ (Codex native)
-  if (filePath?.includes(".agents/skills/")) {
+  if (normalizedPath?.includes(".agents/skills/")) {
     score += 12;
     matchedMarkers.push("File in .agents/skills/ directory (Codex native path)");
   }
 
   // AGENTS.md or AGENTS.override.md
-  if (filePath?.endsWith("AGENTS.md") || filePath?.endsWith("AGENTS.override.md")) {
+  if (normalizedPath?.endsWith("AGENTS.md") || normalizedPath?.endsWith("AGENTS.override.md")) {
     score += 8;
     matchedMarkers.push("Is AGENTS.md or AGENTS.override.md (Codex guidance model)");
   }
@@ -455,7 +456,7 @@ export function detectCodexVersion(
   }
 
   // .codex/agents/ for subagents (TOML format)
-  if (filePath?.includes(".codex/agents/")) {
+  if (normalizedPath?.includes(".codex/agents/")) {
     score += 10;
     matchedMarkers.push("File in .codex/agents/ directory (Codex subagent TOML)");
   }
@@ -486,13 +487,15 @@ export function detectCodexVersion(
       }
     }
     let catalogBestScore = 0;
+    let bestMarkers: string[] = [];
     for (const [version, data] of scores) {
       if (data.score > catalogBestScore) {
         catalogBestScore = data.score;
         bestVersion = version;
-        matchedMarkers.push(...data.markers);
+        bestMarkers = [...data.markers];
       }
     }
+    matchedMarkers.push(...bestMarkers);
   }
 
   const confidence = score > 0 ? Math.min(100, score * 6 + 30) : 30;
@@ -513,35 +516,36 @@ export function detectGeminiVersion(
   filePath?: string,
 ): VersionDetectionResult {
   const context = createDetectionContext(content, filePath);
+  const normalizedPath = filePath?.replace(/\\/g, "/");
   const matchedMarkers: string[] = [];
   let score = 0;
 
   // GEMINI.md — primary context file
-  if (filePath?.endsWith("GEMINI.md")) {
+  if (normalizedPath?.endsWith("GEMINI.md")) {
     score += 12;
     matchedMarkers.push("Is GEMINI.md (Gemini CLI primary context file)");
   }
 
   // .gemini/skills/ path
-  if (filePath?.includes(".gemini/skills/")) {
+  if (normalizedPath?.includes(".gemini/skills/")) {
     score += 12;
     matchedMarkers.push("File in .gemini/skills/ directory (Gemini CLI native)");
   }
 
   // .gemini/agents/ path
-  if (filePath?.includes(".gemini/agents/")) {
+  if (normalizedPath?.includes(".gemini/agents/")) {
     score += 12;
     matchedMarkers.push("File in .gemini/agents/ directory (Gemini CLI subagents)");
   }
 
   // .agents/skills/ alias (Gemini also reads this)
-  if (filePath?.includes(".agents/skills/")) {
+  if (normalizedPath?.includes(".agents/skills/")) {
     score += 6;
     matchedMarkers.push("File in .agents/skills/ (Gemini CLI alias path)");
   }
 
   // policy.toml marker
-  if (filePath?.endsWith("policy.toml")) {
+  if (normalizedPath?.endsWith("policy.toml")) {
     score += 8;
     matchedMarkers.push("Is policy.toml (Gemini CLI policy configuration)");
   }
@@ -561,7 +565,7 @@ export function detectGeminiVersion(
   }
 
   const versions = getAgentVersions("gemini");
-  let bestVersion = getCurrentVersion("gemini")?.version ?? "0.36";
+  let bestVersion = getCurrentVersion("gemini")?.version ?? "0.2";
 
   if (versions.length > 0) {
     const scores: Map<string, { score: number; markers: string[] }> = new Map();
@@ -579,13 +583,15 @@ export function detectGeminiVersion(
       }
     }
     let catalogBestScore = 0;
+    let bestMarkers: string[] = [];
     for (const [version, data] of scores) {
       if (data.score > catalogBestScore) {
         catalogBestScore = data.score;
         bestVersion = version;
-        matchedMarkers.push(...data.markers);
+        bestMarkers = [...data.markers];
       }
     }
+    matchedMarkers.push(...bestMarkers);
   }
 
   const confidence = score > 0 ? Math.min(100, score * 6 + 30) : 30;
@@ -606,36 +612,37 @@ export function detectOpenCodeVersion(
   filePath?: string,
 ): VersionDetectionResult {
   const context = createDetectionContext(content, filePath);
+  const normalizedPath = filePath?.replace(/\\/g, "/");
   const fm = context.frontmatter;
   const matchedMarkers: string[] = [];
   let score = 0;
 
   // .opencode/skills/ path
-  if (filePath?.includes(".opencode/skills/")) {
+  if (normalizedPath?.includes(".opencode/skills/")) {
     score += 12;
     matchedMarkers.push("File in .opencode/skills/ directory (OpenCode native)");
   }
 
   // .opencode/ path (general)
-  if (filePath?.includes(".opencode/")) {
+  if (normalizedPath?.includes(".opencode/")) {
     score += 6;
     matchedMarkers.push("File in .opencode/ directory");
   }
 
   // AGENTS.md as primary rules file
-  if (filePath?.endsWith("AGENTS.md")) {
+  if (normalizedPath?.endsWith("AGENTS.md")) {
     score += 6;
     matchedMarkers.push("Is AGENTS.md (OpenCode primary rules file)");
   }
 
   // .claude/skills/ cross-compat path
-  if (filePath?.includes(".claude/skills/")) {
+  if (normalizedPath?.includes(".claude/skills/")) {
     score += 4;
     matchedMarkers.push("File in .claude/skills/ (OpenCode cross-compat read)");
   }
 
   // .agents/skills/ path (OpenCode reads this)
-  if (filePath?.includes(".agents/skills/")) {
+  if (normalizedPath?.includes(".agents/skills/")) {
     score += 6;
     matchedMarkers.push("File in .agents/skills/ (OpenCode reads via Agent Skills standard)");
   }
@@ -671,13 +678,15 @@ export function detectOpenCodeVersion(
       }
     }
     let catalogBestScore = 0;
+    let bestMarkers: string[] = [];
     for (const [version, data] of scores) {
       if (data.score > catalogBestScore) {
         catalogBestScore = data.score;
         bestVersion = version;
-        matchedMarkers.push(...data.markers);
+        bestMarkers = [...data.markers];
       }
     }
+    matchedMarkers.push(...bestMarkers);
   }
 
   const confidence = score > 0 ? Math.min(100, score * 6 + 30) : 30;

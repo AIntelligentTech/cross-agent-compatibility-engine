@@ -110,6 +110,17 @@ Content here.
         const result = adaptVersion("windsurf", content, "wave-1", "wave-8");
         expect(result.content).toContain("auto_execution_mode: 2");
       });
+
+      test("does not add auto_execution_mode when upgrading to wave-14+", () => {
+        const content = `---
+description: My wave-14 workflow
+---
+
+Content for wave-14 test.
+`;
+        const result = adaptVersion("windsurf", content, "wave-1", "wave-14");
+        expect(result.content).not.toContain("auto_execution_mode");
+      });
     });
 
     describe("Cursor adaptations", () => {

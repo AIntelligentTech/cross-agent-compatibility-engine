@@ -12,7 +12,7 @@ interface CodexFrontmatter {
   description?: string;
   version?: string;
   model?: string;
-  approval_policy?: string;
+  approval_policy?: string | Record<string, unknown>;
   sandbox_mode?: string;
   web_search?: string;
   mcp_servers?: Record<string, unknown>;
@@ -188,7 +188,7 @@ export class CodexValidator extends BaseValidator {
       const validPolicies = ["untrusted", "on-request", "never"];
       const deprecatedPolicies = ["on-failure"];
 
-      if (deprecatedPolicies.includes(fm.approval_policy)) {
+      if (typeof fm.approval_policy === "string" && deprecatedPolicies.includes(fm.approval_policy)) {
         warnings.push(
           this.createIssue(
             "DEPRECATED_APPROVAL_POLICY",
@@ -199,8 +199,8 @@ export class CodexValidator extends BaseValidator {
           )
         );
       } else if (
-        !validPolicies.includes(fm.approval_policy) &&
-        typeof fm.approval_policy === "string"
+        typeof fm.approval_policy === "string" &&
+        !validPolicies.includes(fm.approval_policy)
       ) {
         issues.push(
           this.createIssue(
@@ -211,6 +211,33 @@ export class CodexValidator extends BaseValidator {
             `Valid values: ${validPolicies.join(", ")} or a granular object`
           )
         );
+      } else if (typeof fm.approval_policy === "object" && fm.approval_policy !== null) {
+        const granular = (fm.approval_policy as Record<string, unknown>).granular;
+        if (!granular || typeof granular !== "object") {
+          issues.push(
+            this.createIssue(
+              "INVALID_GRANULAR_POLICY",
+              "Granular approval_policy must have a 'granular' key with an object value",
+              "error",
+              "approval_policy"
+            )
+          );
+        } else {
+          const validKeys = ["sandbox_approval", "rules", "mcp_elicitations", "request_permissions", "skill_approval"];
+          const granularObj = granular as Record<string, unknown>;
+          for (const key of validKeys) {
+            if (key in granularObj && typeof granularObj[key] !== "boolean") {
+              warnings.push(
+                this.createIssue(
+                  "INVALID_GRANULAR_POLICY_VALUE",
+                  `Granular policy key "${key}" should be a boolean`,
+                  "warning",
+                  "approval_policy"
+                )
+              );
+            }
+          }
+        }
       }
     }
 

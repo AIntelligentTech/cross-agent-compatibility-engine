@@ -279,14 +279,12 @@ function applyUpgradeAdaptations(
 
   // Windsurf-specific upgrades
   if (agent === "windsurf") {
-    // Add auto_execution_mode when upgrading to wave-8+.
-    // Note: auto_execution_mode is a legacy field introduced in wave-8. When wave-14
-    // is present in the catalog, this path should additionally guard with
-    // compareVersions(agent, toVersion, "wave-14") < 0 to skip it for wave-14+
-    // where the field is deprecated. For now the upper bound is omitted because
-    // wave-14 is not yet registered in the catalog and compareVersions returns 0
-    // for unknown versions, which would break the guard.
-    if (compareVersions(agent, toVersion, "wave-8") >= 0) {
+    // Add auto_execution_mode when upgrading to wave-8 through wave-13.
+    // auto_execution_mode is a legacy field deprecated in wave-14+.
+    if (
+      compareVersions(agent, toVersion, "wave-8") >= 0 &&
+      compareVersions(agent, toVersion, "wave-14") < 0
+    ) {
       const result = agentAdapters["addAutoExecutionMode"]?.("", frontmatter);
       if (result?.transformation) {
         Object.assign(frontmatter, result.frontmatter);
