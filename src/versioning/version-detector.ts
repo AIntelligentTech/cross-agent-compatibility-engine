@@ -244,12 +244,12 @@ export function detectWindsurfVersion(
   // Additional Windsurf-specific heuristics
   const fm = context.frontmatter;
 
-  // Check for auto_execution_mode (wave-8+, legacy)
+  // Check for legacy auto_execution_mode (wave-8+ heuristic, deprecated in wave-14+)
   if ("auto_execution_mode" in fm) {
     const wave8 = scores.get("wave-8");
     if (wave8) {
       wave8.score += 5;
-      wave8.markers.push('Has "auto_execution_mode" field (wave-8+ feature, legacy)');
+      wave8.markers.push('Has legacy "auto_execution_mode" field (wave-8+ heuristic)');
     }
   }
 
@@ -419,7 +419,12 @@ export function detectCursorVersion(
 }
 
 /**
- * Detect Codex CLI version from content
+ * Detect Codex CLI version (CACE compatibility epoch) from content.
+ *
+ * Returns one of the CACE compatibility epochs (1.0/1.1/1.2) — these are NOT
+ * Codex vendor semver. Codex's public release train remains 0.x; CACE keeps a
+ * smaller set of milestones for migration logic. See
+ * docs/research/repo-audit-2026-04-11.md.
  */
 export function detectCodexVersion(
   content: string,
@@ -427,84 +432,97 @@ export function detectCodexVersion(
 ): VersionDetectionResult {
   const context = createDetectionContext(content, filePath);
   const normalizedPath = filePath?.replace(/\\/g, "/");
-  const fm = context.frontmatter;
-  const matchedMarkers: string[] = [];
-  let score = 0;
-
-  // Primary path marker: .agents/skills/ (Codex native)
-  if (normalizedPath?.includes(".agents/skills/")) {
-    score += 12;
-    matchedMarkers.push("File in .agents/skills/ directory (Codex native path)");
-  }
-
-  // AGENTS.md or AGENTS.override.md
-  if (normalizedPath?.endsWith("AGENTS.md") || normalizedPath?.endsWith("AGENTS.override.md")) {
-    score += 8;
-    matchedMarkers.push("Is AGENTS.md or AGENTS.override.md (Codex guidance model)");
-  }
-
-  // approval_policy field
-  if ("approval_policy" in fm) {
-    score += 8;
-    matchedMarkers.push("Has approval_policy field (Codex-specific)");
-  }
-
-  // sandbox_mode field
-  if ("sandbox_mode" in fm) {
-    score += 8;
-    matchedMarkers.push("Has sandbox_mode field (Codex-specific)");
-  }
-
-  // .codex/agents/ for subagents (TOML format)
-  if (normalizedPath?.includes(".codex/agents/")) {
-    score += 10;
-    matchedMarkers.push("File in .codex/agents/ directory (Codex subagent TOML)");
-  }
-
-  // Plugin config marker
-  if ("plugins" in fm || context.content.includes("/plugins")) {
-    score += 4;
-    matchedMarkers.push("Has plugin configuration (Codex plugins feature)");
-  }
-
   const versions = getAgentVersions("codex");
-  let bestVersion = getCurrentVersion("codex")?.version ?? "0.2";
+  const scores: Map<string, { score: number; markers: string[] }> = new Map();
 
-  // If version catalog has entries, try to score them too
-  if (versions.length > 0) {
-    const scores: Map<string, { score: number; markers: string[] }> = new Map();
-    for (const version of versions) {
-      scores.set(version.version, { score: 0, markers: [] });
-    }
-    for (const version of versions) {
-      const versionScore = scores.get(version.version)!;
-      for (const marker of version.detectionMarkers) {
-        const result = evaluateMarker(marker, context);
-        if (result.matched) {
-          versionScore.score += marker.weight;
-          versionScore.markers.push(result.description);
-        }
-      }
-    }
-    let catalogBestScore = 0;
-    let bestMarkers: string[] = [];
-    for (const [version, data] of scores) {
-      if (data.score > catalogBestScore) {
-        catalogBestScore = data.score;
-        bestVersion = version;
-        bestMarkers = [...data.markers];
-      }
-    }
-    matchedMarkers.push(...bestMarkers);
+  for (const version of versions) {
+    scores.set(version.version, { score: 0, markers: [] });
   }
 
-  const confidence = score > 0 ? Math.min(100, score * 6 + 30) : 30;
+  for (const version of versions) {
+    const versionScore = scores.get(version.version);
+    if (!versionScore) {
+      continue;
+    }
+
+    for (const marker of version.detectionMarkers) {
+      const result = evaluateMarker(marker, context);
+      if (result.matched) {
+        versionScore.score += marker.weight;
+        versionScore.markers.push(result.description);
+      }
+    }
+  }
+
+  if (normalizedPath?.includes(".agents/skills/")) {
+    const v11 = scores.get("1.1");
+    if (v11) {
+      v11.score += 8;
+      v11.markers.push("File in .agents/skills/ directory (epoch 1.1+ feature)");
+    }
+  }
+
+  if (
+    normalizedPath?.endsWith("AGENTS.md") ||
+    normalizedPath?.endsWith("AGENTS.override.md")
+  ) {
+    const v12 = scores.get("1.2");
+    if (v12) {
+      v12.score += 7;
+      v12.markers.push("Uses AGENTS.md guidance chain (epoch 1.2+ feature)");
+    }
+  }
+
+  if (
+    "approval_policy" in context.frontmatter ||
+    "sandbox_mode" in context.frontmatter
+  ) {
+    const v10 = scores.get("1.0");
+    if (v10) {
+      v10.score += 4;
+      v10.markers.push(
+        'Has Codex execution settings like "approval_policy" or "sandbox_mode"',
+      );
+    }
+  }
+
+  // .codex/agents/ subagent TOML — current epoch (1.2) signal
+  if (normalizedPath?.includes(".codex/agents/")) {
+    const v12 = scores.get("1.2");
+    if (v12) {
+      v12.score += 6;
+      v12.markers.push("File in .codex/agents/ directory (Codex subagent TOML, epoch 1.2+)");
+    }
+  }
+
+  // Plugin config marker — current epoch (1.2) signal
+  if ("plugins" in context.frontmatter || context.content.includes("/plugins")) {
+    const v12 = scores.get("1.2");
+    if (v12) {
+      v12.score += 3;
+      v12.markers.push("Has plugin configuration (Codex plugins feature)");
+    }
+  }
+
+  let bestVersion = getCurrentVersion("codex")?.version ?? "1.2";
+  let bestScore = 0;
+  let bestMarkers: string[] = [];
+
+  for (const [version, data] of scores) {
+    if (data.score > bestScore) {
+      bestScore = data.score;
+      bestVersion = version;
+      bestMarkers = data.markers;
+    }
+  }
+
+  const confidence = bestScore > 0 ? Math.min(100, bestScore * 8 + 35) : 35;
 
   return {
     version: bestVersion,
     confidence: Math.round(confidence),
-    matchedMarkers,
-    isDefinitive: score >= 10,
+    matchedMarkers: bestMarkers,
+    isDefinitive: bestScore >= 10,
   };
 }
 

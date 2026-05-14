@@ -527,6 +527,40 @@ describe("CursorRenderer", () => {
   });
 });
 
+describe("OpenCodeRenderer", () => {
+  const renderer = new OpenCodeRenderer();
+
+  describe("render", () => {
+    test("renders skill spec to OpenCode skill format", () => {
+      const spec = createTestSpec();
+      const result = renderer.render(spec);
+
+      expect(result.success).toBe(true);
+      expect(result.content).toContain("name: test-component");
+      expect(result.content).toContain("description: A test component for unit testing");
+      expect(result.content).toContain("This is the body content");
+    });
+  });
+
+  describe("getTargetFilename", () => {
+    test("generates SKILL.md filename for skills", () => {
+      const spec = createTestSpec();
+      const filename = renderer.getTargetFilename(spec);
+
+      expect(filename).toBe("test-component/SKILL.md");
+    });
+  });
+
+  describe("getTargetDirectory", () => {
+    test("returns OpenCode skills directory for skills", () => {
+      const spec = createTestSpec();
+      const dir = renderer.getTargetDirectory(spec);
+
+      expect(dir).toBe(".opencode/skills");
+    });
+  });
+});
+
 describe("Renderer Factory", () => {
   describe("renderComponent", () => {
     test("renders to Claude format", () => {

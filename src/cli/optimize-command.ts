@@ -336,8 +336,8 @@ function findOriginalFile(convertedPath: string, sourceAgent: AgentId): string |
     cursor: [".cursor/rules/", ".cursor/commands/", ".cursor/"],
     windsurf: [".windsurf/skills/", ".windsurf/workflows/", ".windsurf/rules/"],
     opencode: [".opencode/skills/", ".opencode/commands/", ".opencode/agents/"],
-    gemini: [".gemini/skills/", ".gemini/agents/"],
-    codex: [".agents/skills/", ".codex/commands/", ".codex/rules/", ".codex/"],
+    gemini: [".gemini/skills/", ".gemini/agents/", ".gemini/"],
+    codex: [".agents/skills/", ".codex/skills/", ".codex/commands/", ".codex/rules/", ".codex/"],
     aider: [".aider/"],
     universal: ["AGENTS.md"],
     continue: [".continue/"]

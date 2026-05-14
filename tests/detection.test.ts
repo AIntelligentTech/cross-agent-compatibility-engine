@@ -108,15 +108,15 @@ Body`;
   });
 
   describe("Windsurf workflow detection", () => {
-    test("should detect Windsurf workflow with description and auto_execution_mode", () => {
+    test("should detect Windsurf workflow with description and workflow structure", () => {
       const content = `---
 description: A workflow description
-auto_execution_mode: 3
 ---
 
 # Workflow
 
-Body content.
+1. Inspect the codebase.
+2. Call /follow-up-check.
 `;
       const agent = detectAgent(content);
       expect(agent).toBe("windsurf");
@@ -142,7 +142,7 @@ description: Review with OpenCode
 
 Review the repository carefully.
 `;
-      const agent = detectAgent(content, ".opencode/skills/opencode-review.md");
+      const agent = detectAgent(content, ".opencode/skills/opencode-review/SKILL.md");
       expect(agent).toBe("opencode");
     });
 
@@ -157,7 +157,7 @@ agent: review-agent
 Review the repository carefully.
 `;
       const result = parseComponent(content, {
-        sourceFile: ".opencode/skills/opencode-review.md",
+        sourceFile: ".opencode/skills/opencode-review/SKILL.md",
       });
       expect(result.success).toBe(true);
       expect(result.spec?.sourceAgent?.id).toBe("opencode");

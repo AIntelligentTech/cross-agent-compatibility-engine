@@ -35,13 +35,13 @@ export const AGENT_ARTIFACT_SUPPORT: Record<AgentId, AgentArtifactSupport> = {
   },
   codex: {
     skill: { parse: "native", render: "native", validate: true },
-    command: { parse: "native", render: "native", validate: true },
-    rule: { parse: "native", render: "native", validate: true },
+    command: { parse: "degraded", render: "degraded", validate: true },
+    rule: { parse: "degraded", render: "degraded", validate: true },
     memory: { parse: "native", render: "native", validate: true },
   },
   gemini: {
-    skill: { parse: "native", render: "native", validate: true },
-    command: { parse: "native", render: "native", validate: true },
+    skill: { parse: "degraded", render: "degraded", validate: true },
+    command: { parse: "degraded", render: "degraded", validate: true },
     memory: { parse: "native", render: "native", validate: true },
   },
   universal: {

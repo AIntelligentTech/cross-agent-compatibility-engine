@@ -24,7 +24,7 @@ import { parseWindsurfHooks } from "./windsurf-hooks-parser.js";
 interface WindsurfFrontmatter {
   name?: string;
   description?: string;
-  auto_execution_mode?: number;
+  auto_execution_mode?: number | string;
   version?: string;
   tags?: string[];
   trigger?: string;
@@ -62,11 +62,27 @@ export class WindsurfParser extends BaseParser {
 
     // Check for Windsurf-specific patterns
     try {
-      const { data } = matter(content);
-      const fm = data as WindsurfFrontmatter;
-      // Windsurf typically has description and optionally auto_execution_mode
+      const parsed = matter(content);
+      const fm = parsed.data as WindsurfFrontmatter;
+      const body = parsed.content.trim();
+      const hasRuleMarkers =
+        fm.trigger !== undefined ||
+        fm.alwaysApply !== undefined ||
+        fm.globs !== undefined;
+      const hasSkillMarkers = Array.isArray(fm.tags) && fm.tags.length > 0;
+      const hasLegacyWorkflowMarker = fm.auto_execution_mode !== undefined;
+      const hasWorkflowShape =
+        typeof fm.description === "string" &&
+        fm.name === undefined &&
+        (/^\d+\./m.test(body) ||
+          /call \/[\w-]+/i.test(body) ||
+          /^#\s+workflow\b/im.test(body));
+
       return (
-        fm.description !== undefined && fm.auto_execution_mode !== undefined
+        hasRuleMarkers ||
+        hasSkillMarkers ||
+        hasLegacyWorkflowMarker ||
+        hasWorkflowShape
       );
     } catch {
       return false;
@@ -121,8 +137,8 @@ export class WindsurfParser extends BaseParser {
       ? parseVersion(fm.version)
       : { major: 1, minor: 0, patch: 0 };
 
-    // Map auto_execution_mode to activation mode
-    const activationMode = this.mapAutoExecutionMode(fm.auto_execution_mode);
+    // Map agent activation mode
+    const activationMode = this.resolveActivationMode(componentType, fm);
 
     // Infer capabilities from body content
     const capabilities =
@@ -177,7 +193,15 @@ export class WindsurfParser extends BaseParser {
     }
 
     // Add warnings for Windsurf-specific features
-    if (fm.auto_execution_mode !== undefined && fm.auto_execution_mode > 0) {
+    if (componentType === "workflow" && fm.auto_execution_mode !== undefined) {
+      warnings.push(
+        "Legacy auto_execution_mode detected. Windsurf workflows are treated as manual-only.",
+      );
+    } else if (
+      fm.auto_execution_mode !== undefined &&
+      fm.auto_execution_mode !== 0 &&
+      fm.auto_execution_mode !== "manual"
+    ) {
       warnings.push(
         `auto_execution_mode=${fm.auto_execution_mode} may not have direct equivalents in other agents`,
       );
@@ -313,14 +337,31 @@ export class WindsurfParser extends BaseParser {
     };
   }
 
-  private mapAutoExecutionMode(
-    mode?: number,
+  private resolveActivationMode(
+    componentType: "skill" | "workflow" | "rule",
+    fm: WindsurfFrontmatter,
   ): "manual" | "suggested" | "auto" | "contextual" {
-    if (mode === undefined || mode === 0) return "manual";
-    if (mode === 1) return "suggested";
-    if (mode === 2) return "contextual";
-    if (mode >= 3) return "auto";
-    return "manual";
+    if (componentType === "workflow") {
+      return "manual";
+    }
+
+    if (componentType === "skill") {
+      return "suggested";
+    }
+
+    if (fm.trigger === "manual") {
+      return "manual";
+    }
+
+    if (fm.trigger === "glob" || fm.globs !== undefined) {
+      return "contextual";
+    }
+
+    if (fm.trigger === "always_on" || fm.alwaysApply === true) {
+      return "auto";
+    }
+
+    return "suggested";
   }
 
   private inferCapabilities(body: string): CapabilitySet {

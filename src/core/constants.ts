@@ -86,8 +86,8 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
     componentTypes: ['skill', 'command', 'memory', 'rule', 'config'],
     fileExtension: '.md',
     configLocations: {
-      project: '.codex',
-      user: '~/.codex',
+      project: '.agents/skills',
+      user: '~/.codex/skills',
     },
   },
   aider: {

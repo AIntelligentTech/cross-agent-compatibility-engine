@@ -72,6 +72,24 @@ Review code for quality and best practices.`;
       }
     });
 
+    it("should derive skill id from .agents/skills path", () => {
+      const content = `---
+name: code-reviewer
+description: Review code for quality
+---
+
+Review code for quality and best practices.`;
+
+      const result = parser.parse(content, {
+        sourceFile: ".agents/skills/code-reviewer/SKILL.md",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.spec.id).toBe("code-reviewer");
+        expect(result.spec.componentType).toBe("skill");
+      }
+    });
+
     it("should parse a command with slash_command", () => {
       const content = `---
 name: fix-linting

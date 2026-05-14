@@ -1,8 +1,17 @@
 # Agent Parity Knowledge
 
-**Document Version:** 1.1.0  
+**Document Version:** 1.2.0  
 **Created:** 2026-01-30  
+**Updated:** 2026-03-13  
 **Purpose:** Comprehensive analysis of conversion parity issues across AI coding agents
+
+> **Status note (April 11, 2026):** this document remains useful for parity reasoning, but older Codex and Gemini assumptions have been corrected by the current audit. Treat [`docs/research/repo-audit-2026-04-11.md`](./research/repo-audit-2026-04-11.md) as the canonical current evidence layer.
+
+This document focuses on the current parity gaps and conversion consequences. For
+the historical evolution of compatibility over time, including when the major
+turning points occurred across Claude Code, Windsurf, Cursor, Codex, OpenCode,
+Gemini CLI, and the `AGENTS.md` ecosystem, see
+`docs/research/compatibility-evolution-timeline.md`.
 
 ---
 
@@ -15,8 +24,8 @@ This document captures research findings on conversion parity gaps between Claud
 | Claude → Windsurf | 87% | Context isolation, tool restrictions | Dual-output |
 | Claude → Cursor | 96% | Context fork, tool restriction enforcement | Prefer Skills (+ optional Commands) |
 | Claude → OpenCode | 98% | Minor metadata | Native support |
-| Claude → Codex | 92% | Context fork, no native skills | MCP mapping |
-| Claude → Gemini | 92% | Fork context, hook execution | YAML Frontmatter mapping |
+| Claude → Codex | 92% | Context fork, approval/sandbox policy translation | Native skill conversion + AGENTS guidance |
+| Claude → Gemini | 84% | Fork context, governance/hooks, artifact schema drift | GEMINI.md + command/settings approximation |
 
 ---
 
@@ -446,27 +455,25 @@ CACE's `--strategy=dual-output` generates BOTH artifacts:
 
 ---
 
-## 6. Gemini CLI Tool Mapping
+## 6. Gemini CLI: Context-Strong, Artifact-Cautious
 
-### Gemini Model
+### Current Position
 
-Gemini CLI uses boolean flags and a `tools` array in YAML frontmatter:
+Current official Gemini CLI documentation is strongest on:
 
-```yaml
----
-name: code-executor
-description: Execute and analyze code
-code_execution: true
-google_search: true
-tools:
-  - file_read
-  - file_write
----
-```
+- `GEMINI.md` context layering
+- custom commands
+- `settings.json`
+- trusted folders and sandbox/security controls
+- built-in tools
+- MCP integration
+- git worktrees
+
+That means CACE should treat Gemini as a **strong context and automation target**, but should be more careful about presenting markdown skill frontmatter as fully vendor-native.
 
 ### Conversion Mapping
 
-CACE maps Claude tools to Gemini equivalents:
+CACE can still map Claude tool intent to Gemini capability intent:
 
 | Claude Tool | Gemini Mapping |
 |-------------|----------------|
@@ -478,10 +485,10 @@ CACE maps Claude tools to Gemini equivalents:
 
 | Feature | Claude | Gemini |
 |---------|--------|--------|
-| Tool whitelist | ✅ `allowed-tools` | ✅ `tools` + flags |
-| Code execution | ✅ `Bash` tool | ✅ `code_execution` |
-| Web access | ✅ `Search` tool | ✅ `google_search` |
-| Frontmatter | ✅ Full | ✅ Full |
+| Tool whitelist | ✅ `allowed-tools` | ⚠️ No directly equivalent hard whitelist |
+| Code execution | ✅ `Bash` tool | ✅ Built-in execution capability |
+| Web access | ✅ `Search` tool | ✅ Built-in search/web capability |
+| Artifact schema confidence | ✅ High | ⚠️ Mixed: context/commands/settings are clearer than markdown skill parity |
 
 ---
 
@@ -492,10 +499,10 @@ CACE maps Claude tools to Gemini equivalents:
 | Feature | Claude | Windsurf | Cursor | OpenCode | Codex | Gemini |
 |---------|--------|----------|--------|----------|-------|--------|
 | Context fork | ✅ | ❌ | ❌ | ⚠️ subtask | ❌ | ❌ |
-| Tool restrictions | ✅ allowed-tools | ❌ | ❌ | ⚠️ permissions | ⚠️ MCP | ❌ |
+| Tool restrictions | ✅ allowed-tools | ❌ | ❌ | ⚠️ permissions | ⚠️ partial policy/sandbox controls | ❌ |
 | Agent delegation | ✅ agent: | ❌ | ❌ | ✅ Yes | ❌ | ❌ |
 | Hook execution | ✅ PreToolUse | ❌ | ✅ | ❌ | ❌ | ❌ |
-| YAML frontmatter | ✅ Full | ⚠️ Partial | ✅ (Skills) | ✅ Full | ✅ Full | ✅ Full |
+| YAML frontmatter | ✅ Full | ⚠️ Partial | ✅ (Skills) | ✅ Full | ✅ Skills; other artifact types less certain | ⚠️ Heuristic in CACE, not current highest-confidence vendor surface |
 
 ### Partial Equivalents
 

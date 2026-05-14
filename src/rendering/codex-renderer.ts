@@ -194,14 +194,14 @@ export class CodexRenderer extends BaseRenderer {
   getTargetDirectory(spec: ComponentSpec): string {
     switch (spec.componentType) {
       case "skill":
-        // Codex CLI v0.118+ native path is .agents/skills/<id>/
+        // Codex native path is .agents/skills/<id>/ (CACE epoch 1.1+)
         return `.agents/skills/${spec.id}`;
       case "command":
         return `.codex/commands`;
       case "rule":
         return `.codex/rules`;
       case "memory":
-        return `.codex/memory`;
+        return `.`;
       default:
         return `.codex`;
     }
@@ -216,7 +216,7 @@ export class CodexRenderer extends BaseRenderer {
       case "rule":
         return `${spec.id}.md`;
       case "memory":
-        return `${spec.id}.md`;
+        return "AGENTS.md";
       default:
         return `${spec.id}.md`;
     }

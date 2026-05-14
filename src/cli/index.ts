@@ -278,6 +278,10 @@ program
       console.log(chalk.yellow("⚠️  Note: OpenCode natively supports Claude files. Conversion may not be necessary."));
     }
 
+    if (fromAgent === "universal" && targetAgent === "codex") {
+      console.log(chalk.yellow("⚠️  Note: Codex natively consumes AGENTS.md guidance. Conversion may not be necessary."));
+    }
+
     if (options.verbose) {
       console.log(
         chalk.gray(
@@ -1283,8 +1287,9 @@ function showAgentGuidance(agent: AgentId, componentType: string): void {
     codex: {
       skill: [
         "Place skills in .agents/skills/<name>/SKILL.md",
-        "Use AGENTS.md for durable project guidance",
+        "Use AGENTS.md or AGENTS.override.md for durable project guidance",
         "Configure subagents in .codex/agents/ as TOML",
+        "Configure MCP servers in config.toml",
         "Plugins available via /plugins command",
         "Set appropriate 'approval_policy' (untrusted, on-request, never)",
         "Choose correct 'sandbox_mode' (read-only, workspace-write, danger-full-access)",
@@ -1379,6 +1384,7 @@ function getScaffoldPaths(agent: AgentId, basePath: string, isUserLevel: boolean
         paths.push(join(basePath, ".codex", "agents"));
       } else {
         paths.push(".agents/skills");
+        paths.push(".codex");
         paths.push(".codex/agents");
       }
       break;

@@ -211,6 +211,16 @@ export class CodexValidator extends BaseValidator {
             `Valid values: ${validPolicies.join(", ")} or a granular object`
           )
         );
+      } else if (fm.approval_policy === "on-failure") {
+        warnings.push(
+          this.createIssue(
+            "DEPRECATED_APPROVAL_POLICY",
+            'approval_policy "on-failure" is deprecated',
+            "warning",
+            "approval_policy",
+            "Use on-request for interactive runs or never for non-interactive runs"
+          )
+        );
       } else if (typeof fm.approval_policy === "object" && fm.approval_policy !== null) {
         const granular = (fm.approval_policy as Record<string, unknown>).granular;
         if (!granular || typeof granular !== "object") {

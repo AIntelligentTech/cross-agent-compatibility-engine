@@ -47,8 +47,8 @@ export const CLAUDE_FEATURES: FeatureFlag[] = [
   {
     id: "claude-fork-context",
     name: "Fork Context",
-    description: "Fork execution context for isolated runs",
-    introducedIn: "1.0",
+    description: "Fork execution context for isolated runs (/fork command, later renamed /branch)",
+    introducedIn: "2.1",
   },
   {
     id: "claude-allowed-tools",
@@ -163,7 +163,6 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
     featuresIntroduced: [
       "claude-skills",
       "claude-commands",
-      "claude-fork-context",
       "claude-allowed-tools",
       "claude-memory-imports",
     ],
@@ -250,6 +249,7 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
       "claude-skill-hooks",
       "claude-conditional-hooks",
       "claude-effort-levels",
+      "claude-fork-context",
     ],
     featuresDeprecated: [],
     featuresRemoved: [],
@@ -265,6 +265,12 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
         type: "field_present",
         field: "shell",
         weight: 4,
+        indicatesVersionOrLater: true,
+      },
+      {
+        type: "field_present",
+        field: "context",
+        weight: 6,
         indicatesVersionOrLater: true,
       },
     ],
@@ -519,7 +525,7 @@ export const CURSOR_FEATURES: FeatureFlag[] = [
     id: "cursor-skills",
     name: "Agent Skills",
     description:
-      "Agent Skills standard (.cursor/skills/<name>/SKILL.md) including Claude compatibility directories (.claude/skills)",
+      "Agent Skills standard (.cursor/skills/<name>/SKILL.md)",
     introducedIn: "2.4",
   },
   {
@@ -720,7 +726,7 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
     agent: "cursor",
     version: "2.4",
     semver: { major: 2, minor: 4, patch: 0 },
-    releaseDate: "2026-01-15",
+    releaseDate: "2026-01-22",
     isCurrent: false,
     isSupported: true,
     featuresIntroduced: ["cursor-skills"],
@@ -732,12 +738,6 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
         type: "file_pattern",
         pattern: "\\.cursor/skills/[^/]+/SKILL\\.md$",
         weight: 10,
-        indicatesVersionOrLater: true,
-      },
-      {
-        type: "file_pattern",
-        pattern: "\\.claude/skills/[^/]+/SKILL\\.md$",
-        weight: 6,
         indicatesVersionOrLater: true,
       },
     ],
@@ -788,10 +788,138 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
 ];
 
 // ============================================================================
-// Codex CLI Versions
+// Codex Compatibility Epochs
 // ============================================================================
+//
+// IMPORTANT: these are CACE internal compatibility epochs, not official Codex
+// CLI vendor semver releases. Codex's public release train is still 0.x (latest
+// 0.120.0 as of April 11, 2026). CACE uses a smaller set of milestones (1.0/
+// 1.1/1.2) for migration and adaptation logic. See
+// docs/research/repo-audit-2026-04-11.md for the audit reframe.
 
 export const CODEX_FEATURES: FeatureFlag[] = [
+  {
+    id: "codex-ga",
+    name: "Feature Maturity",
+    description: "Codex matures as a stable product surface (npm versioning remains 0.x)",
+    introducedIn: "1.0",
+  },
+  {
+    id: "codex-agent-skills",
+    name: "Agent Skills",
+    description: "Skill definitions in .agents/skills/<name>/SKILL.md",
+    introducedIn: "1.1",
+  },
+  {
+    id: "codex-agents-guidance",
+    name: "AGENTS.md Guidance Chain",
+    description: "Hierarchical project guidance via AGENTS.md and AGENTS.override.md",
+    introducedIn: "1.2",
+  },
+  {
+    id: "codex-team-config",
+    name: "Team Config",
+    description: "Shared configuration via Codex home and team-level settings",
+    introducedIn: "1.2",
+  },
+];
+
+export const CODEX_BREAKING_CHANGES: BreakingChange[] = [
+  {
+    id: "codex-custom-prompts-deprecated",
+    type: "behavior_changed",
+    version: "1.2",
+    description: "Custom prompts are deprecated in favor of AGENTS.md guidance and team config",
+    affected: "custom prompts",
+    migration:
+      "Move durable project guidance into AGENTS.md or AGENTS.override.md and use team config for shared defaults",
+    autoMigratable: false,
+  },
+];
+
+export const CODEX_VERSIONS: VersionCatalogEntry[] = [
+  {
+    agent: "codex",
+    version: "1.0",
+    semver: { major: 1, minor: 0, patch: 0 },
+    releaseDate: "2025-10-01",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["codex-ga"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "field_present",
+        field: "approval_policy",
+        weight: 4,
+        indicatesVersionOrLater: true,
+      },
+      {
+        type: "field_present",
+        field: "sandbox_mode",
+        weight: 4,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "codex",
+    version: "1.1",
+    semver: { major: 1, minor: 1, patch: 0 },
+    releaseDate: "2025-12-01",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["codex-agent-skills"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "file_pattern",
+        pattern: "\\.agents/skills/[^/]+/SKILL\\.md$",
+        weight: 10,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "codex",
+    version: "1.2",
+    semver: { major: 1, minor: 2, patch: 0 },
+    releaseDate: "2026-01-01",
+    isCurrent: true,
+    isSupported: true,
+    featuresIntroduced: ["codex-agents-guidance", "codex-team-config"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: ["codex-custom-prompts-deprecated"],
+    detectionMarkers: [
+      {
+        type: "file_pattern",
+        pattern: "(^|/)AGENTS(?:\\.override)?\\.md$",
+        weight: 8,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+];
+
+// ============================================================================
+// Codex CLI Vendor Surface (informational — kept for vendor-feature lookups)
+// ============================================================================
+//
+// NOTE: this block previously declared a parallel set of 0.x "vendor" Codex
+// versions. Those were dropped during the April 11 audit (see
+// docs/research/repo-audit-2026-04-11.md): keeping two version sets confused
+// the catalog. The detailed feature flags below are retained because they
+// document vendor-surface knowledge used by the parser, renderer, and audit
+// engine. They are NOT enumerated as separate VersionCatalogEntry rows — the
+// CODEX_VERSIONS array above (1.0/1.1/1.2 epochs) is the single source of
+// truth for version-aware decisions.
+
+const _CODEX_VENDOR_FEATURE_REFERENCE: FeatureFlag[] = [
   {
     id: "codex-approval-policy",
     name: "Approval Policy",
@@ -841,67 +969,6 @@ export const CODEX_FEATURES: FeatureFlag[] = [
     name: "Path-Based Addressing",
     description: "Path-based subagent addressing (/root/agent_a)",
     introducedIn: "0.2",
-  },
-];
-
-export const CODEX_BREAKING_CHANGES: BreakingChange[] = [
-  {
-    id: "codex-on-failure-deprecated",
-    type: "behavior_changed",
-    version: "0.1",
-    description: "approval_policy on-failure deprecated",
-    affected: "approval_policy",
-    migration: "Use on-request or never instead of on-failure",
-    autoMigratable: false,
-  },
-];
-
-export const CODEX_VERSIONS: VersionCatalogEntry[] = [
-  {
-    agent: "codex",
-    version: "0.1",
-    semver: { major: 0, minor: 1, patch: 0 },
-    releaseDate: "2025-05-01",
-    isCurrent: false,
-    isSupported: true,
-    featuresIntroduced: [
-      "codex-approval-policy",
-      "codex-sandbox-mode",
-      "codex-agents-md",
-      "codex-skills",
-      "codex-subagents",
-      "codex-mcp",
-    ],
-    featuresDeprecated: [],
-    featuresRemoved: [],
-    breakingChanges: ["codex-on-failure-deprecated"],
-    detectionMarkers: [
-      {
-        type: "field_present",
-        field: "approval_policy",
-        weight: 4,
-        indicatesVersionOrLater: true,
-      },
-      {
-        type: "field_present",
-        field: "sandbox_mode",
-        weight: 4,
-        indicatesVersionOrLater: true,
-      },
-    ],
-  },
-  {
-    agent: "codex",
-    version: "0.2",
-    semver: { major: 0, minor: 2, patch: 0 },
-    releaseDate: "2026-03-26",
-    isCurrent: true,
-    isSupported: true,
-    featuresIntroduced: ["codex-plugins", "codex-path-addressing"],
-    featuresDeprecated: [],
-    featuresRemoved: [],
-    breakingChanges: [],
-    detectionMarkers: [],
   },
 ];
 

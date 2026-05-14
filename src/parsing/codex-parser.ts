@@ -41,7 +41,7 @@ export class CodexParser extends BaseParser {
   canParse(content: string, filename?: string): boolean {
     // Check filename patterns first
     if (filename) {
-      // .agents/skills/ is the primary Codex native path as of v0.118+
+      // .agents/skills/ is the Codex native skills path (CACE epoch 1.1+)
       if (filename.includes(".agents/skills/")) return true;
       if (filename.includes(".codex/")) return true;
       if (filename.endsWith("CODEX.md")) return true;
@@ -214,12 +214,16 @@ export class CodexParser extends BaseParser {
   private extractIdFromFilename(filename?: string): string | undefined {
     if (!filename) return undefined;
     
-    // Extract from path like .codex/skills/my-skill/SKILL.md
+    // Extract from path like .agents/skills/my-skill/SKILL.md or .codex/skills/my-skill/SKILL.md
     const match = filename.match(/[/\\]([^/\\]+)[/\\]?(?:SKILL|COMMAND)?\.md$/i);
     if (match) {
       return match[1];
     }
     
+    if (filename.endsWith("AGENTS.md")) {
+      return "codex-guidance";
+    }
+
     // Extract from CODEX.md
     if (filename.includes("CODEX.md")) {
       return "codex-config";

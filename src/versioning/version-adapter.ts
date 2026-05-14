@@ -117,20 +117,6 @@ const WINDSURF_ADAPTERS: Record<string, AdapterFunction> = {
     };
   },
 
-  /**
-   * Add auto_execution_mode if not present (for wave-8+)
-   */
-  addAutoExecutionMode: (content, frontmatter) => {
-    if (!("auto_execution_mode" in frontmatter)) {
-      return {
-        content,
-        frontmatter: { ...frontmatter, auto_execution_mode: 0 },
-        transformation:
-          "Added auto_execution_mode: 0 for wave-8+ compatibility",
-      };
-    }
-    return { content, frontmatter, transformation: "" };
-  },
 };
 
 // ============================================================================

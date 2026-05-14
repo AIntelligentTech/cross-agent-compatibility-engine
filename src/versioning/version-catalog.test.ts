@@ -64,6 +64,12 @@ describe("Version Catalog", () => {
       const versions = getAgentVersions("aider");
       expect(versions).toEqual([]);
     });
+
+    test("returns Codex versions", () => {
+      const versions = getAgentVersions("codex");
+      expect(versions.length).toBeGreaterThan(0);
+      expect(versions[0]?.agent).toBe("codex");
+    });
   });
 
   describe("getCurrentVersion", () => {
@@ -88,11 +94,11 @@ describe("Version Catalog", () => {
       expect(current?.version).toBe("3.0");
     });
 
-    test("returns current Codex version", () => {
+    test("returns current Codex version (epoch 1.2)", () => {
       const current = getCurrentVersion("codex");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("0.2");
+      expect(current?.version).toBe("1.2");
     });
 
     test("returns current Gemini version", () => {
@@ -107,6 +113,13 @@ describe("Version Catalog", () => {
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
       expect(current?.version).toBe("1.3");
+    });
+
+    test("returns current Codex version", () => {
+      const current = getCurrentVersion("codex");
+      expect(current).toBeDefined();
+      expect(current?.isCurrent).toBe(true);
+      expect(current?.version).toBe("1.2");
     });
   });
 
@@ -123,10 +136,10 @@ describe("Version Catalog", () => {
       expect(version).toBeUndefined();
     });
 
-    test("returns specific Codex version", () => {
-      const version = getVersion("codex", "0.1");
+    test("returns specific Codex epoch", () => {
+      const version = getVersion("codex", "1.1");
       expect(version).toBeDefined();
-      expect(version?.version).toBe("0.1");
+      expect(version?.version).toBe("1.1");
       expect(version?.agent).toBe("codex");
     });
 
@@ -167,7 +180,7 @@ describe("Version Catalog", () => {
     test("returns Codex features", () => {
       const features = getAgentFeatures("codex");
       expect(features.length).toBeGreaterThan(0);
-      expect(features.some((f) => f.id === "codex-approval-policy")).toBe(true);
+      expect(features.some((f) => f.id === "codex-agent-skills")).toBe(true);
     });
 
     test("returns Gemini features", () => {
@@ -202,10 +215,10 @@ describe("Version Catalog", () => {
       expect(feature?.introducedIn).toBe("2.1");
     });
 
-    test("returns Codex approval-policy feature", () => {
-      const feature = getFeature("codex", "codex-approval-policy");
+    test("returns Codex agent-skills feature (epoch 1.1)", () => {
+      const feature = getFeature("codex", "codex-agent-skills");
       expect(feature).toBeDefined();
-      expect(feature?.introducedIn).toBe("0.1");
+      expect(feature?.introducedIn).toBe("1.1");
     });
 
     test("returns Gemini policy-engine feature", () => {
@@ -293,18 +306,16 @@ describe("Version Catalog", () => {
       ).toBe(false);
     });
 
-    test("codex-approval-policy available in 0.1 (introduced)", () => {
-      expect(isFeatureAvailable("codex", "codex-approval-policy", "0.1")).toBe(
+    test("codex-agent-skills available after introduction (epoch 1.1+)", () => {
+      expect(isFeatureAvailable("codex", "codex-agent-skills", "1.0")).toBe(
+        false,
+      );
+      expect(isFeatureAvailable("codex", "codex-agent-skills", "1.1")).toBe(
         true,
       );
-    });
-
-    test("codex-plugins available in 0.2 (introduced)", () => {
-      expect(isFeatureAvailable("codex", "codex-plugins", "0.2")).toBe(true);
-    });
-
-    test("codex-plugins not available in 0.1 (before introduction)", () => {
-      expect(isFeatureAvailable("codex", "codex-plugins", "0.1")).toBe(false);
+      expect(isFeatureAvailable("codex", "codex-agent-skills", "1.2")).toBe(
+        true,
+      );
     });
 
     test("gemini-worktrees available in 0.2 (introduced)", () => {
@@ -367,7 +378,7 @@ describe("Version Catalog", () => {
       const changes = getBreakingChanges("codex");
       expect(changes.length).toBeGreaterThan(0);
       expect(
-        changes.some((c) => c.id === "codex-on-failure-deprecated"),
+        changes.some((c) => c.id === "codex-custom-prompts-deprecated"),
       ).toBe(true);
     });
 
@@ -417,10 +428,11 @@ describe("Version Catalog", () => {
       );
     });
 
-    test("codex getBreakingChangesBetween 0.1 and 0.2 returns array", () => {
-      // codex-on-failure-deprecated is in version 0.1 itself (not between 0.1 and 0.2)
-      const changes = getBreakingChangesBetween("codex", "0.1", "0.2");
-      expect(Array.isArray(changes)).toBe(true);
+    test("returns breaking changes for Codex 1.0 to 1.2 (epoch range)", () => {
+      const changes = getBreakingChangesBetween("codex", "1.0", "1.2");
+      expect(
+        changes.some((c) => c.id === "codex-custom-prompts-deprecated"),
+      ).toBe(true);
     });
   });
 
@@ -450,8 +462,8 @@ describe("Version Catalog", () => {
       expect(compareVersions("cursor", "2.5", "3.0")).toBe(-1);
     });
 
-    test("Codex 0.1 is before 0.2", () => {
-      expect(compareVersions("codex", "0.1", "0.2")).toBe(-1);
+    test("Codex epoch 1.0 is before 1.2", () => {
+      expect(compareVersions("codex", "1.0", "1.2")).toBe(-1);
     });
 
     test("Gemini 0.1 is before 0.2", () => {
@@ -460,6 +472,11 @@ describe("Version Catalog", () => {
 
     test("OpenCode 1.0 is before 1.3", () => {
       expect(compareVersions("opencode", "1.0", "1.3")).toBe(-1);
+    });
+
+    test("works with Codex versions", () => {
+      expect(compareVersions("codex", "1.0", "1.1")).toBe(-1);
+      expect(compareVersions("codex", "1.2", "1.1")).toBe(1);
     });
   });
 
@@ -486,10 +503,10 @@ describe("Version Catalog", () => {
       expect(summary.versions.length).toBe(CURSOR_VERSIONS.length);
     });
 
-    test("returns Codex version summary", () => {
+    test("returns Codex version summary (epoch 1.2 current)", () => {
       const summary = getVersionSummary("codex");
       expect(summary.agent).toBe("codex");
-      expect(summary.currentVersion).toBe("0.2");
+      expect(summary.currentVersion).toBe("1.2");
       expect(summary.versions.length).toBe(CODEX_VERSIONS.length);
       expect(summary.totalFeatures).toBeGreaterThan(0);
     });
@@ -508,6 +525,13 @@ describe("Version Catalog", () => {
       expect(summary.currentVersion).toBe("1.3");
       expect(summary.versions.length).toBe(OPENCODE_VERSIONS.length);
       expect(summary.totalFeatures).toBeGreaterThan(0);
+    });
+
+    test("returns Codex version summary", () => {
+      const summary = getVersionSummary("codex");
+      expect(summary.agent).toBe("codex");
+      expect(summary.currentVersion).toBe("1.2");
+      expect(summary.versions.length).toBe(CODEX_VERSIONS.length);
     });
   });
 
@@ -609,10 +633,10 @@ describe("Version Catalog", () => {
       expect(v24?.isCurrent).toBe(false);
     });
 
-    test("Codex 0.2 features introduced list is correct", () => {
-      const v02 = CODEX_VERSIONS.find((v) => v.version === "0.2");
-      expect(v02?.featuresIntroduced).toContain("codex-plugins");
-      expect(v02?.featuresIntroduced).toContain("codex-path-addressing");
+    test("Codex 1.2 epoch features introduced list is correct", () => {
+      const v12 = CODEX_VERSIONS.find((v) => v.version === "1.2");
+      expect(v12?.featuresIntroduced).toContain("codex-agents-guidance");
+      expect(v12?.featuresIntroduced).toContain("codex-team-config");
     });
 
     test("Gemini 0.1 detection markers include agent file pattern", () => {
@@ -642,9 +666,9 @@ describe("Version Catalog", () => {
       expect(v30?.breakingChanges).toContain("cursor-cloud-agents-removed");
     });
 
-    test("Codex 0.1 has on-failure-deprecated breaking change", () => {
-      const v01 = CODEX_VERSIONS.find((v) => v.version === "0.1");
-      expect(v01?.breakingChanges).toContain("codex-on-failure-deprecated");
+    test("Codex 1.2 epoch has custom-prompts-deprecated breaking change", () => {
+      const v12 = CODEX_VERSIONS.find((v) => v.version === "1.2");
+      expect(v12?.breakingChanges).toContain("codex-custom-prompts-deprecated");
     });
   });
 });
