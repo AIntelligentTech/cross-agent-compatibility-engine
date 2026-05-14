@@ -5,7 +5,20 @@
 **Updated:** 2026-03-13  
 **Purpose:** Comprehensive analysis of conversion parity issues across AI coding agents
 
-> **Status note (April 11, 2026):** this document remains useful for parity reasoning, but older Codex and Gemini assumptions have been corrected by the current audit. Treat [`docs/research/repo-audit-2026-04-11.md`](./research/repo-audit-2026-04-11.md) as the canonical current evidence layer.
+> **Status note (May 14, 2026):** this document remains useful for parity
+> reasoning, but the **canonical evidence layer** is now
+> [`docs/research/repo-audit-2026-05-14.md`](./research/repo-audit-2026-05-14.md).
+> The May 14 audit verified every catalog claim against current vendor docs
+> and led to: deleting three fabricated breaking changes, fixing Codex user
+> path (`~/.codex/skills` → `~/.agents/skills`), reframing Codex versions
+> as compatibility epochs tracking concrete vendor versions, expanding
+> Windsurf hook coverage (2 → 12 events), adding AGENTS.md as a universal
+> memory artifact across Cursor/Windsurf/Codex/Gemini, promoting
+> `claude.memory.render` and `claude.rule.render` to native, and bumping
+> current versions to Cursor 3.3, Gemini 0.42, OpenCode 1.14.50, Claude
+> 2.1.141, and Codex epoch 1.2 (vendor 0.130.0). The earlier
+> [`repo-audit-2026-04-11.md`](./research/repo-audit-2026-04-11.md) remains
+> in-tree for historical context.
 
 This document focuses on the current parity gaps and conversion consequences. For
 the historical evolution of compatibility over time, including when the major
@@ -19,13 +32,19 @@ Gemini CLI, and the `AGENTS.md` ecosystem, see
 
 This document captures research findings on conversion parity gaps between Claude Code and other AI coding agents. Understanding these gaps is essential for the CACE dual-output strategy and proper user guidance.
 
+Fidelity figures below are calibrated to the May 14, 2026 audit. Every
+percentage is sensitive to the silent feature drops the audit identified
+(plugins, path-triggered skills, 29 Claude hook events, 12 Windsurf hook
+events, Codex `requirements.toml`, Gemini Trusted Folders, OpenCode
+permission tri-state). Treat as directional, not absolute.
+
 | Source → Target | Fidelity | Critical Gaps | Strategy |
 |-----------------|----------|---------------|----------|
-| Claude → Windsurf | 87% | Context isolation, tool restrictions | Dual-output |
-| Claude → Cursor | 96% | Context fork, tool restriction enforcement | Prefer Skills (+ optional Commands) |
-| Claude → OpenCode | 98% | Minor metadata | Native support |
-| Claude → Codex | 92% | Context fork, approval/sandbox policy translation | Native skill conversion + AGENTS guidance |
-| Claude → Gemini | 84% | Fork context, governance/hooks, artifact schema drift | GEMINI.md + command/settings approximation |
+| Claude → Windsurf | ~75% | Plugins, 27 of 29 hook events, dynamic `!`-injection, fork-context | Map SKILL.md + 2 hook events; flag rest as lossy |
+| Claude → Cursor | ~80% | Plugins, path-triggered skills, allowed-tools (hard boundary), fork-context | Map SKILL.md + .mdc rules; flag plugins as Cursor 2.5 marketplace install |
+| Claude → OpenCode | ~95% | Plugins, permission tri-state translation | Near-native; preserve AGENTS.md |
+| Claude → Codex | ~80% | Plugins, hooks, `requirements.toml`, fork-context | Native skill + AGENTS.md; translate hooks to N/A |
+| Claude → Gemini | ~70% | Plugins, hooks, fork-context, settings.json wiring, Trusted Folders | GEMINI.md + .gemini/skills approximation |
 
 ---
 

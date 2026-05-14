@@ -8,7 +8,7 @@
 
 **🚀 Version-aware cross-agent compatibility tool with automatic agent detection!**
 
-> **Status note (April 11, 2026):** the repository now includes a current audit of verified vs inferred agent compatibility. Use [`docs/research/repo-audit-2026-04-11.md`](./docs/research/repo-audit-2026-04-11.md) and [`docs/research/agent-artifact-compatibility-matrix.md`](./docs/research/agent-artifact-compatibility-matrix.md) as the canonical research sources. Some older release summaries and gap reports remain in-tree for historical context and are not current vendor truth.
+> **Status note (May 14, 2026):** the canonical audit of verified vs inferred agent compatibility is now [`docs/research/repo-audit-2026-05-14.md`](./docs/research/repo-audit-2026-05-14.md) — a comprehensive evidence-based comparison against current vendor docs as of 2026-05-14. The earlier [`docs/research/repo-audit-2026-04-11.md`](./docs/research/repo-audit-2026-04-11.md) remains for historical context but the May 14 audit supersedes it. Older release summaries and gap reports remain in-tree for historical context and are not current vendor truth.
 
 Convert and validate AI agent components between **6 major agents**: Claude Code, OpenCode, Cursor, Windsurf, **OpenAI Codex**, and **Google Gemini** with version compatibility knowledge and beautiful visual outputs.
 

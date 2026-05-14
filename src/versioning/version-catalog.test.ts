@@ -73,53 +73,52 @@ describe("Version Catalog", () => {
   });
 
   describe("getCurrentVersion", () => {
-    test("returns current Claude version", () => {
+    test("returns current Claude version (2.1.141)", () => {
       const current = getCurrentVersion("claude");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("2.1");
+      expect(current?.version).toBe("2.1.141");
+      expect(current?.vendorVersion).toBe("2.1.141");
     });
 
-    test("returns current Windsurf version", () => {
+    test("returns current Windsurf version (2.2 / 2.2.17)", () => {
       const current = getCurrentVersion("windsurf");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("wave-14");
+      expect(current?.version).toBe("2.2");
+      expect(current?.vendorVersion).toBe("2.2.17");
     });
 
-    test("returns current Cursor version", () => {
+    test("returns current Cursor version (3.3)", () => {
       const current = getCurrentVersion("cursor");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("3.0");
+      expect(current?.version).toBe("3.3");
+      expect(current?.vendorVersion).toBe("3.3");
     });
 
-    test("returns current Codex version (epoch 1.2)", () => {
+    test("returns current Codex version (epoch 1.2 → vendor 0.130.0)", () => {
       const current = getCurrentVersion("codex");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
       expect(current?.version).toBe("1.2");
+      expect(current?.vendorVersion).toBe("0.130.0");
     });
 
-    test("returns current Gemini version", () => {
+    test("returns current Gemini version (0.42)", () => {
       const current = getCurrentVersion("gemini");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("0.2");
+      expect(current?.version).toBe("0.42");
+      expect(current?.vendorVersion).toBe("0.42.0");
     });
 
-    test("returns current OpenCode version", () => {
+    test("returns current OpenCode version (1.14)", () => {
       const current = getCurrentVersion("opencode");
       expect(current).toBeDefined();
       expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("1.3");
-    });
-
-    test("returns current Codex version", () => {
-      const current = getCurrentVersion("codex");
-      expect(current).toBeDefined();
-      expect(current?.isCurrent).toBe(true);
-      expect(current?.version).toBe("1.2");
+      expect(current?.version).toBe("1.14");
+      expect(current?.vendorVersion).toBe("1.14.50");
     });
   });
 
@@ -350,10 +349,15 @@ describe("Version Catalog", () => {
   });
 
   describe("getBreakingChanges", () => {
-    test("returns Claude breaking changes", () => {
+    test("returns Claude breaking changes (hooks-format + commands-merged)", () => {
       const changes = getBreakingChanges("claude");
       expect(changes.length).toBeGreaterThan(0);
-      expect(changes.some((c) => c.id === "claude-rules-location")).toBe(true);
+      expect(changes.some((c) => c.id === "claude-hooks-format")).toBe(true);
+    });
+
+    test("does NOT include fabricated claude-rules-location (audit 2026-05-14)", () => {
+      const changes = getBreakingChanges("claude");
+      expect(changes.some((c) => c.id === "claude-rules-location")).toBe(false);
     });
 
     test("returns Claude 2.1 commands-merged breaking change", () => {
@@ -367,10 +371,17 @@ describe("Version Catalog", () => {
       expect(changes.some((c) => c.id === "cursor-rules-migration")).toBe(true);
     });
 
-    test("returns Cursor 3.0 cloud-agents-removed breaking change", () => {
+    test("does NOT include fabricated cursor-cloud-agents-removed (audit 2026-05-14)", () => {
       const changes = getBreakingChanges("cursor");
       expect(changes.some((c) => c.id === "cursor-cloud-agents-removed")).toBe(
-        true,
+        false,
+      );
+    });
+
+    test("does NOT include fabricated windsurf-skills-location (audit 2026-05-14)", () => {
+      const changes = getBreakingChanges("windsurf");
+      expect(changes.some((c) => c.id === "windsurf-skills-location")).toBe(
+        false,
       );
     });
 
@@ -391,14 +402,20 @@ describe("Version Catalog", () => {
       const changes = getBreakingChanges("opencode");
       expect(changes).toEqual([]);
     });
+
+    test("returns empty Windsurf breaking changes (audit deletion)", () => {
+      const changes = getBreakingChanges("windsurf");
+      expect(changes).toEqual([]);
+    });
   });
 
   describe("getBreakingChangesBetween", () => {
-    test("returns breaking changes between Claude 1.0 and 2.0", () => {
+    test("returns breaking changes between Claude 1.0 and 2.0 (hooks-format only)", () => {
       const changes = getBreakingChangesBetween("claude", "1.0", "2.0");
       expect(changes.length).toBeGreaterThan(0);
       expect(changes.some((c) => c.id === "claude-hooks-format")).toBe(true);
-      expect(changes.some((c) => c.id === "claude-rules-location")).toBe(true);
+      // claude-rules-location is fabricated and not in the catalog
+      expect(changes.some((c) => c.id === "claude-rules-location")).toBe(false);
     });
 
     test("returns breaking changes between Claude 2.0 and 2.1", () => {
@@ -421,10 +438,10 @@ describe("Version Catalog", () => {
       expect(changes.some((c) => c.id === "cursor-rules-migration")).toBe(true);
     });
 
-    test("returns cursor-cloud-agents-removed between 2.5 and 3.0", () => {
+    test("no fabricated breaking change between Cursor 2.5 and 3.0", () => {
       const changes = getBreakingChangesBetween("cursor", "2.5", "3.0");
       expect(changes.some((c) => c.id === "cursor-cloud-agents-removed")).toBe(
-        true,
+        false,
       );
     });
 
@@ -481,25 +498,25 @@ describe("Version Catalog", () => {
   });
 
   describe("getVersionSummary", () => {
-    test("returns Claude version summary", () => {
+    test("returns Claude version summary (current 2.1.141)", () => {
       const summary = getVersionSummary("claude");
       expect(summary.agent).toBe("claude");
       expect(summary.versions.length).toBe(CLAUDE_VERSIONS.length);
-      expect(summary.currentVersion).toBe("2.1");
+      expect(summary.currentVersion).toBe("2.1.141");
       expect(summary.totalFeatures).toBeGreaterThan(0);
       expect(summary.totalBreakingChanges).toBeGreaterThan(0);
     });
 
-    test("returns Windsurf version summary", () => {
+    test("returns Windsurf version summary (current 2.2)", () => {
       const summary = getVersionSummary("windsurf");
       expect(summary.agent).toBe("windsurf");
-      expect(summary.currentVersion).toBe("wave-14");
+      expect(summary.currentVersion).toBe("2.2");
     });
 
-    test("returns Cursor version summary", () => {
+    test("returns Cursor version summary (current 3.3)", () => {
       const summary = getVersionSummary("cursor");
       expect(summary.agent).toBe("cursor");
-      expect(summary.currentVersion).toBe("3.0");
+      expect(summary.currentVersion).toBe("3.3");
       expect(summary.versions.length).toBe(CURSOR_VERSIONS.length);
     });
 
@@ -511,27 +528,20 @@ describe("Version Catalog", () => {
       expect(summary.totalFeatures).toBeGreaterThan(0);
     });
 
-    test("returns Gemini version summary", () => {
+    test("returns Gemini version summary (current 0.42)", () => {
       const summary = getVersionSummary("gemini");
       expect(summary.agent).toBe("gemini");
-      expect(summary.currentVersion).toBe("0.2");
+      expect(summary.currentVersion).toBe("0.42");
       expect(summary.versions.length).toBe(GEMINI_VERSIONS.length);
       expect(summary.totalFeatures).toBeGreaterThan(0);
     });
 
-    test("returns OpenCode version summary", () => {
+    test("returns OpenCode version summary (current 1.14)", () => {
       const summary = getVersionSummary("opencode");
       expect(summary.agent).toBe("opencode");
-      expect(summary.currentVersion).toBe("1.3");
+      expect(summary.currentVersion).toBe("1.14");
       expect(summary.versions.length).toBe(OPENCODE_VERSIONS.length);
       expect(summary.totalFeatures).toBeGreaterThan(0);
-    });
-
-    test("returns Codex version summary", () => {
-      const summary = getVersionSummary("codex");
-      expect(summary.agent).toBe("codex");
-      expect(summary.currentVersion).toBe("1.2");
-      expect(summary.versions.length).toBe(CODEX_VERSIONS.length);
     });
   });
 
@@ -618,25 +628,57 @@ describe("Version Catalog", () => {
       expect(opencodeCurrent.length).toBe(1);
     });
 
-    test("Claude 2.0 is marked not current (superseded by 2.1)", () => {
+    test("Claude 2.0 is marked not current (superseded by 2.1.x patches)", () => {
       const v20 = CLAUDE_VERSIONS.find((v) => v.version === "2.0");
       expect(v20?.isCurrent).toBe(false);
     });
 
-    test("Windsurf wave-13 is marked not current (superseded by wave-14)", () => {
+    test("Windsurf wave-13 is marked not current (superseded by 2.2)", () => {
       const wave13 = WINDSURF_VERSIONS.find((v) => v.version === "wave-13");
       expect(wave13?.isCurrent).toBe(false);
     });
 
-    test("Cursor 2.4 is marked not current (superseded by 3.0)", () => {
+    test("Windsurf wave-13 introduces agent-skills (audit correction)", () => {
+      const wave13 = WINDSURF_VERSIONS.find((v) => v.version === "wave-13");
+      expect(wave13?.featuresIntroduced).toContain("windsurf-agent-skills");
+      expect(wave13?.featuresIntroduced).toContain("windsurf-hooks");
+      expect(wave13?.featuresIntroduced).toContain("windsurf-agents-md");
+    });
+
+    test("Cursor 2.4 is marked not current (superseded by 3.3)", () => {
       const v24 = CURSOR_VERSIONS.find((v) => v.version === "2.4");
       expect(v24?.isCurrent).toBe(false);
     });
 
-    test("Codex 1.2 epoch features introduced list is correct", () => {
+    test("Cursor 2.4 introduces skills + subagents (audit correction)", () => {
+      const v24 = CURSOR_VERSIONS.find((v) => v.version === "2.4");
+      expect(v24?.featuresIntroduced).toContain("cursor-skills");
+      expect(v24?.featuresIntroduced).toContain("cursor-subagents");
+    });
+
+    test("Cursor 2.5 release date is 2026-02-17 (audit correction)", () => {
+      const v25 = CURSOR_VERSIONS.find((v) => v.version === "2.5");
+      expect(v25?.releaseDate).toBe("2026-02-17");
+    });
+
+    test("Cursor 2.5.1 introduces self-hosted-agents on 2026-03-25 (audit correction)", () => {
+      const v251 = CURSOR_VERSIONS.find((v) => v.version === "2.5.1");
+      expect(v251?.releaseDate).toBe("2026-03-25");
+      expect(v251?.featuresIntroduced).toContain("cursor-self-hosted-agents");
+    });
+
+    test("Codex 1.2 epoch features introduced list includes new audit additions", () => {
       const v12 = CODEX_VERSIONS.find((v) => v.version === "1.2");
       expect(v12?.featuresIntroduced).toContain("codex-agents-guidance");
       expect(v12?.featuresIntroduced).toContain("codex-team-config");
+      expect(v12?.featuresIntroduced).toContain("codex-requirements");
+      expect(v12?.featuresIntroduced).toContain("codex-doc-fallback");
+      expect(v12?.featuresIntroduced).toContain("codex-plugins");
+    });
+
+    test("Codex 1.2 epoch tracks vendor 0.130.0 (audit correction)", () => {
+      const v12 = CODEX_VERSIONS.find((v) => v.version === "1.2");
+      expect(v12?.vendorVersion).toBe("0.130.0");
     });
 
     test("Gemini 0.1 detection markers include agent file pattern", () => {
@@ -650,10 +692,26 @@ describe("Version Catalog", () => {
       expect(agentMarker?.weight).toBe(8);
     });
 
-    test("OpenCode 1.3 features include gitlab and session-review", () => {
+    test("Gemini 0.1 introduces gemini-builtin-agents (browser_agent name corrected in feature description)", () => {
+      const v01 = GEMINI_VERSIONS.find((v) => v.version === "0.1");
+      expect(v01?.featuresIntroduced).toContain("gemini-builtin-agents");
+    });
+
+    test("OpenCode 1.3 features include gitlab and plugins", () => {
       const v13 = OPENCODE_VERSIONS.find((v) => v.version === "1.3");
       expect(v13?.featuresIntroduced).toContain("opencode-gitlab");
-      expect(v13?.featuresIntroduced).toContain("opencode-session-review");
+      expect(v13?.featuresIntroduced).toContain("opencode-plugins");
+    });
+
+    test("OpenCode 1.2 introduces permission-tristate (audit addition)", () => {
+      const v12 = OPENCODE_VERSIONS.find((v) => v.version === "1.2");
+      expect(v12?.featuresIntroduced).toContain("opencode-permission-tristate");
+    });
+
+    test("OpenCode 1.14 current with vendorVersion 1.14.50", () => {
+      const v114 = OPENCODE_VERSIONS.find((v) => v.version === "1.14");
+      expect(v114?.isCurrent).toBe(true);
+      expect(v114?.vendorVersion).toBe("1.14.50");
     });
 
     test("Claude 2.1 has claude-commands-merged breaking change", () => {
@@ -661,14 +719,58 @@ describe("Version Catalog", () => {
       expect(v21?.breakingChanges).toContain("claude-commands-merged");
     });
 
-    test("Cursor 3.0 has cursor-cloud-agents-removed breaking change", () => {
+    test("Claude 2.0 has NO claude-rules-location breaking change (audit deletion)", () => {
+      const v20 = CLAUDE_VERSIONS.find((v) => v.version === "2.0");
+      expect(v20?.breakingChanges).not.toContain("claude-rules-location");
+    });
+
+    test("Cursor 3.0 has NO fabricated cloud-agents-removed (audit deletion)", () => {
       const v30 = CURSOR_VERSIONS.find((v) => v.version === "3.0");
-      expect(v30?.breakingChanges).toContain("cursor-cloud-agents-removed");
+      expect(v30?.breakingChanges).not.toContain("cursor-cloud-agents-removed");
+    });
+
+    test("Windsurf wave-13 has NO fabricated skills-location (audit deletion)", () => {
+      const wave13 = WINDSURF_VERSIONS.find((v) => v.version === "wave-13");
+      expect(wave13?.breakingChanges).not.toContain("windsurf-skills-location");
     });
 
     test("Codex 1.2 epoch has custom-prompts-deprecated breaking change", () => {
       const v12 = CODEX_VERSIONS.find((v) => v.version === "1.2");
       expect(v12?.breakingChanges).toContain("codex-custom-prompts-deprecated");
+    });
+
+    test("All catalog entries with vendorVersion have it as a non-empty string", () => {
+      const all = [
+        ...CLAUDE_VERSIONS,
+        ...WINDSURF_VERSIONS,
+        ...CURSOR_VERSIONS,
+        ...CODEX_VERSIONS,
+        ...GEMINI_VERSIONS,
+        ...OPENCODE_VERSIONS,
+      ];
+      for (const entry of all) {
+        if (entry.vendorVersion !== undefined) {
+          expect(typeof entry.vendorVersion).toBe("string");
+          expect(entry.vendorVersion.length).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    test("Current entry for each agent carries vendorVersion (audit posture)", () => {
+      const groups = [
+        ["claude", CLAUDE_VERSIONS],
+        ["windsurf", WINDSURF_VERSIONS],
+        ["cursor", CURSOR_VERSIONS],
+        ["codex", CODEX_VERSIONS],
+        ["gemini", GEMINI_VERSIONS],
+        ["opencode", OPENCODE_VERSIONS],
+      ] as const;
+      for (const [agent, entries] of groups) {
+        const current = entries.find((v) => v.isCurrent);
+        expect(current).toBeDefined();
+        expect(typeof current?.vendorVersion).toBe("string");
+        expect(current?.agent).toBe(agent);
+      }
     });
   });
 });

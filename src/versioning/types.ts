@@ -86,10 +86,14 @@ export interface BreakingChange {
 export interface VersionCatalogEntry {
   /** Agent identifier */
   agent: AgentId;
-  /** Named version */
+  /** Named version (may be a CACE compatibility epoch label) */
   version: string;
   /** Semantic version if available */
   semver?: SemanticVersion;
+  /** Concrete vendor version string when this entry tracks a real vendor
+   *  release rather than an internal CACE compatibility epoch. Optional —
+   *  Codex epochs (1.0/1.1/1.2) and Windsurf waves leave this unset. */
+  vendorVersion?: string;
   /** Release date */
   releaseDate?: string;
   /** Whether this is the current/latest version */

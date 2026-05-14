@@ -87,13 +87,16 @@ Do something useful.
       expect(result.confidence).toBeGreaterThanOrEqual(50);
     });
 
-    test("detects wave-10 from skills file path", () => {
+    test("detects wave-13 from skills file path (audit reattribution)", () => {
+      // Wave 13 (2025-12-24) introduced Agent Skills at .windsurf/skills/.
+      // Wave 9/wave-10 never had skills; the old test asserted a fabricated
+      // history.
       const content = "Skill content";
       const result = detectWindsurfVersion(
         content,
         "/project/.windsurf/skills/my-skill/SKILL.md",
       );
-      expect(result.version).toBe("wave-10");
+      expect(result.version).toBe("wave-13");
       expect(result.isDefinitive).toBe(true);
     });
   });
@@ -135,7 +138,18 @@ Rule content.
 `;
       const result = detectCursorVersion(content);
       // globs is a 1.7+ feature, so version should be 1.7 or later
-      expect(["1.7", "2.2", "2.3", "2.4", "2.5", "3.0"]).toContain(result.version);
+      expect([
+        "1.7",
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5",
+        "2.5.1",
+        "3.0",
+        "3.1",
+        "3.2",
+        "3.3",
+      ]).toContain(result.version);
     });
   });
 

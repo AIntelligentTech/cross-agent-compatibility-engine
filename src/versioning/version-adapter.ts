@@ -103,21 +103,10 @@ const CURSOR_ADAPTERS: Record<string, AdapterFunction> = {
 // Windsurf Adapters
 // ============================================================================
 
-const WINDSURF_ADAPTERS: Record<string, AdapterFunction> = {
-  /**
-   * Migrate skill location for wave-10+
-   */
-  migrateWindsurfSkillLocation: (content, frontmatter) => {
-    return {
-      content,
-      frontmatter,
-      transformation: "",
-      warning:
-        "Skills should be moved to .windsurf/skills/<name>/SKILL.md format",
-    };
-  },
-
-};
+// NOTE (audit 2026-05-14): the `migrateWindsurfSkillLocation` adapter was
+// tied to a fabricated breaking change. Skills did not exist before Wave 13
+// (2025-12-24); there was no prior location to migrate from. Adapter removed.
+const WINDSURF_ADAPTERS: Record<string, AdapterFunction> = {};
 
 // ============================================================================
 // Adapter Registry

@@ -87,7 +87,7 @@ export const AGENTS: Record<AgentId, AgentInfo> = {
     fileExtension: '.md',
     configLocations: {
       project: '.agents/skills',
-      user: '~/.codex/skills',
+      user: '~/.agents/skills',
     },
   },
   aider: {
@@ -213,7 +213,7 @@ export const AGENT_FILE_PATTERNS: Record<AgentId, RegExp[]> = {
   ],
   codex: [
     /\.agents\/skills\/.*\/SKILL\.md$/,
-    /\.codex\/.*\.md$/,
-    /CODEX\.md$/,
+    /\.codex\/agents\/.*\.toml$/,
+    /(^|\/)AGENTS(?:\.override)?\.md$/,
   ],
 };

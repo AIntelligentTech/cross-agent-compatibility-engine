@@ -113,23 +113,52 @@ export const CLAUDE_FEATURES: FeatureFlag[] = [
   {
     id: "claude-effort-levels",
     name: "Effort Levels",
-    description: "Effort level control (low/medium/high/max)",
+    description:
+      "Effort levels (low|medium|high|max). settings: effortLevel; skill frontmatter: effort; env: CLAUDE_CODE_EFFORT_LEVEL",
     introducedIn: "2.1",
+  },
+  {
+    id: "claude-paths-trigger",
+    name: "Path-Triggered Skills",
+    description:
+      "paths: frontmatter array — glob-matched skill auto-activation",
+    introducedIn: "2.1",
+  },
+  {
+    id: "claude-auto-memory",
+    name: "Auto Memory",
+    description:
+      "Project-scoped persistent memory at ~/.claude/projects/<project>/memory/MEMORY.md",
+    introducedIn: "2.1",
+  },
+  {
+    id: "claude-xhigh-effort",
+    name: "xhigh Effort Level",
+    description:
+      "Additional xhigh effort level for Opus 4.7 — requires Claude Code ≥ 2.1.111",
+    introducedIn: "2.1.111",
+  },
+  {
+    id: "claude-agents-view",
+    name: "Background Agents View",
+    description:
+      "`claude agents` subsystem — background-agent UI surface and lifecycle commands",
+    introducedIn: "2.1.139",
+  },
+  {
+    id: "claude-worktree-integration",
+    name: "Worktree Integration",
+    description:
+      "`claude --worktree` flag plus WorktreeCreate hook event for first-class worktree workflows",
+    introducedIn: "2.1.139",
   },
 ];
 
+// NOTE (audit 2026-05-14): the previously-listed `claude-rules-location`
+// breaking change was fabricated. `.claude/rules/*.md` is additive
+// path-scoping (see docs/en/memory#organize-rules-with-claude-rules);
+// CLAUDE.md remains the canonical mechanism. No breaking move occurred.
 export const CLAUDE_BREAKING_CHANGES: BreakingChange[] = [
-  {
-    id: "claude-rules-location",
-    type: "location_changed",
-    version: "2.0",
-    description:
-      "Rules moved from inline CLAUDE.md to .claude/rules/ directory",
-    affected: "rules",
-    migration:
-      "Extract rules from CLAUDE.md into separate .md files in .claude/rules/",
-    autoMigratable: false,
-  },
   {
     id: "claude-hooks-format",
     type: "format_changed",
@@ -224,7 +253,7 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
     featuresIntroduced: ["claude-rules", "claude-background-agents"],
     featuresDeprecated: [],
     featuresRemoved: [],
-    breakingChanges: ["claude-rules-location"],
+    breakingChanges: [],
     detectionMarkers: [
       {
         type: "file_pattern",
@@ -239,7 +268,7 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
     version: "2.1",
     semver: { major: 2, minor: 1, patch: 0 },
     releaseDate: "2026-02-18",
-    isCurrent: true,
+    isCurrent: false,
     isSupported: true,
     featuresIntroduced: [
       "claude-named-subagents",
@@ -250,6 +279,8 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
       "claude-conditional-hooks",
       "claude-effort-levels",
       "claude-fork-context",
+      "claude-paths-trigger",
+      "claude-auto-memory",
     ],
     featuresDeprecated: [],
     featuresRemoved: [],
@@ -275,6 +306,48 @@ export const CLAUDE_VERSIONS: VersionCatalogEntry[] = [
       },
     ],
   },
+  {
+    agent: "claude",
+    version: "2.1.111",
+    semver: { major: 2, minor: 1, patch: 111 },
+    vendorVersion: "2.1.111",
+    releaseDate: "2026-04-16",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["claude-xhigh-effort"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "claude",
+    version: "2.1.139",
+    semver: { major: 2, minor: 1, patch: 139 },
+    vendorVersion: "2.1.139",
+    releaseDate: "2026-05-11",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["claude-agents-view", "claude-worktree-integration"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "claude",
+    version: "2.1.141",
+    semver: { major: 2, minor: 1, patch: 141 },
+    vendorVersion: "2.1.141",
+    releaseDate: "2026-05-13",
+    isCurrent: true,
+    isSupported: true,
+    featuresIntroduced: [],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
 ];
 
 // ============================================================================
@@ -285,13 +358,15 @@ export const WINDSURF_FEATURES: FeatureFlag[] = [
   {
     id: "windsurf-workflows",
     name: "Workflows",
-    description: "Workflow definitions in .windsurf/workflows/",
+    description:
+      "Workflow definitions in .windsurf/workflows/ + global ~/.codeium/windsurf/global_workflows/*.md + enterprise system paths",
     introducedIn: "wave-1",
   },
   {
     id: "windsurf-rules",
     name: "Rules",
-    description: "Rule definitions in .windsurf/rules/",
+    description:
+      "Rule definitions in .windsurf/rules/ (.md, fed via Cascade Rules engine)",
     introducedIn: "wave-1",
   },
   {
@@ -299,18 +374,6 @@ export const WINDSURF_FEATURES: FeatureFlag[] = [
     name: "Auto Execution Mode",
     description: "auto_execution_mode field for activation control",
     introducedIn: "wave-8",
-  },
-  {
-    id: "windsurf-agent-skills",
-    name: "Agent Skills",
-    description: "Agent Skills support for Cascade",
-    introducedIn: "wave-10",
-  },
-  {
-    id: "windsurf-parallel-sessions",
-    name: "Parallel Sessions",
-    description: "Multi-agent parallel sessions with Git worktrees",
-    introducedIn: "wave-13",
   },
   {
     id: "windsurf-browser-preview",
@@ -325,6 +388,34 @@ export const WINDSURF_FEATURES: FeatureFlag[] = [
     introducedIn: "wave-12",
   },
   {
+    id: "windsurf-agent-skills",
+    name: "Agent Skills",
+    description:
+      "Agent Skills at .windsurf/skills/<name>/SKILL.md + global ~/.codeium/windsurf/skills/ + enterprise system paths",
+    introducedIn: "wave-13",
+  },
+  {
+    id: "windsurf-parallel-sessions",
+    name: "Parallel Sessions",
+    description:
+      "Multi-agent parallel sessions with Git worktrees + Multi-Cascade Panes/Tabs",
+    introducedIn: "wave-13",
+  },
+  {
+    id: "windsurf-worktree-hook",
+    name: "Worktree Hook",
+    description:
+      "post_setup_worktree hook (added 2026-01-14 in 1.13.8 patch within Wave 13)",
+    introducedIn: "wave-13",
+  },
+  {
+    id: "windsurf-mdm",
+    name: "System Rules & Workflows via MDM",
+    description:
+      "Enterprise system-level rules and workflows distributed via MDM",
+    introducedIn: "wave-13",
+  },
+  {
     id: "windsurf-arena-mode",
     name: "Arena Mode",
     description: "Side-by-side blind model comparison with voting",
@@ -337,43 +428,64 @@ export const WINDSURF_FEATURES: FeatureFlag[] = [
     introducedIn: "wave-14",
   },
   {
+    id: "windsurf-claude-compat",
+    name: "Claude Code Compatibility",
+    description:
+      "readClaudeCodeConfig flag for .claude/skills/ and ~/.claude/skills/ discovery",
+    introducedIn: "wave-14",
+  },
+  {
     id: "windsurf-agents-skills",
     name: "Agents Skills Directory",
-    description: "Reading .agents/skills/ directory",
-    introducedIn: "wave-14",
+    description:
+      ".agents/skills/ and ~/.agents/skills/ discovery (Cascade scans both)",
+    introducedIn: "1.9552.21",
   },
   {
     id: "windsurf-cascade-transcript-hook",
     name: "Cascade Transcript Hook",
-    description: "POST_CASCADE_RESPONSE_WITH_TRANSCRIPT hook",
-    introducedIn: "wave-14",
+    description:
+      "post_cascade_response_with_transcript hook event (added 1.9566.9)",
+    introducedIn: "1.9566.9",
   },
   {
-    id: "windsurf-worktree-hook",
-    name: "Worktree Hook",
-    description: "post_setup_worktree hook",
-    introducedIn: "wave-14",
+    id: "windsurf-agents-md",
+    name: "AGENTS.md Auto-Discovery",
+    description:
+      "Windsurf auto-discovers AGENTS.md / agents.md workspace-wide and feeds them into the Cascade Rules engine",
+    introducedIn: "wave-13",
   },
   {
-    id: "windsurf-claude-compat",
-    name: "Claude Code Compatibility",
-    description: "readClaudeCodeConfig flag for .claude/skills/ reading",
-    introducedIn: "wave-14",
+    id: "windsurf-hooks",
+    name: "Cascade Hooks (12 events)",
+    description:
+      "Hook events: pre/post_read_code, pre/post_write_code, pre/post_run_command, pre/post_mcp_tool_use, pre_user_prompt, post_cascade_response, post_cascade_response_with_transcript, post_setup_worktree",
+    introducedIn: "wave-13",
+  },
+  {
+    id: "windsurf-devin",
+    name: "Devin in Windsurf",
+    description: "Devin agent integration in Windsurf + Agent Command Center",
+    introducedIn: "2.0",
+  },
+  {
+    id: "windsurf-devin-terminal",
+    name: "Devin for Terminal",
+    description: "Devin for Terminal mode",
+    introducedIn: "2.1",
+  },
+  {
+    id: "windsurf-devin-review",
+    name: "Devin Review",
+    description: "Devin Review for all (general availability)",
+    introducedIn: "2.2",
   },
 ];
 
-export const WINDSURF_BREAKING_CHANGES: BreakingChange[] = [
-  {
-    id: "windsurf-skills-location",
-    type: "location_changed",
-    version: "wave-10",
-    description: "Skills moved to .windsurf/skills/ directory structure",
-    affected: "skills",
-    migration: "Move skill files to .windsurf/skills/<name>/SKILL.md format",
-    autoMigratable: true,
-    transformFn: "migrateWindsurfSkillLocation",
-  },
-];
+// NOTE (audit 2026-05-14): `windsurf-skills-location` (wave-9/wave-10) was
+// fabricated. Agent Skills did not exist before Wave 13 (2025-12-24); there
+// was no prior .windsurf/skills/ to migrate from. Removed.
+export const WINDSURF_BREAKING_CHANGES: BreakingChange[] = [];
 
 export const WINDSURF_VERSIONS: VersionCatalogEntry[] = [
   {
@@ -416,30 +528,11 @@ export const WINDSURF_VERSIONS: VersionCatalogEntry[] = [
   },
   {
     agent: "windsurf",
-    version: "wave-10",
-    releaseDate: "2025-06-01",
+    version: "wave-11",
+    releaseDate: "2025-08-01",
     isCurrent: false,
     isSupported: true,
-    featuresIntroduced: ["windsurf-agent-skills"],
-    featuresDeprecated: [],
-    featuresRemoved: [],
-    breakingChanges: ["windsurf-skills-location"],
-    detectionMarkers: [
-      {
-        type: "file_pattern",
-        pattern: "\\.windsurf/skills/.*\\.md$",
-        weight: 8,
-        indicatesVersionOrLater: true,
-      },
-    ],
-  },
-  {
-    agent: "windsurf",
-    version: "wave-13",
-    releaseDate: "2025-12-01",
-    isCurrent: false,
-    isSupported: true,
-    featuresIntroduced: ["windsurf-parallel-sessions"],
+    featuresIntroduced: ["windsurf-browser-preview"],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
@@ -447,17 +540,29 @@ export const WINDSURF_VERSIONS: VersionCatalogEntry[] = [
   },
   {
     agent: "windsurf",
-    version: "wave-14",
-    releaseDate: "2026-01-30",
-    isCurrent: true,
+    version: "wave-12",
+    releaseDate: "2025-10-01",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["windsurf-voice-input"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "windsurf",
+    version: "wave-13",
+    releaseDate: "2025-12-24",
+    isCurrent: false,
     isSupported: true,
     featuresIntroduced: [
-      "windsurf-arena-mode",
-      "windsurf-plan-mode",
-      "windsurf-agents-skills",
-      "windsurf-cascade-transcript-hook",
+      "windsurf-agent-skills",
+      "windsurf-parallel-sessions",
       "windsurf-worktree-hook",
-      "windsurf-claude-compat",
+      "windsurf-mdm",
+      "windsurf-agents-md",
+      "windsurf-hooks",
     ],
     featuresDeprecated: [],
     featuresRemoved: [],
@@ -465,11 +570,104 @@ export const WINDSURF_VERSIONS: VersionCatalogEntry[] = [
     detectionMarkers: [
       {
         type: "file_pattern",
-        pattern: "\\.agents/skills/",
+        pattern: "\\.windsurf/skills/[^/]+/SKILL\\.md$",
+        weight: 10,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "windsurf",
+    version: "wave-14",
+    releaseDate: "2026-01-30",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: [
+      "windsurf-arena-mode",
+      "windsurf-plan-mode",
+      "windsurf-claude-compat",
+    ],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "windsurf",
+    version: "1.9552.21",
+    semver: { major: 1, minor: 9552, patch: 21 },
+    vendorVersion: "1.9552.21",
+    releaseDate: "2026-02-12",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["windsurf-agents-skills"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "file_pattern",
+        pattern: "\\.agents/skills/[^/]+/SKILL\\.md$",
         weight: 6,
         indicatesVersionOrLater: true,
       },
     ],
+  },
+  {
+    agent: "windsurf",
+    version: "1.9566.9",
+    semver: { major: 1, minor: 9566, patch: 9 },
+    vendorVersion: "1.9566.9",
+    releaseDate: "2026-02-25",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["windsurf-cascade-transcript-hook"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "windsurf",
+    version: "2.0",
+    semver: { major: 2, minor: 0, patch: 0 },
+    vendorVersion: "2.0",
+    releaseDate: "2026-04-15",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["windsurf-devin"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "windsurf",
+    version: "2.1",
+    semver: { major: 2, minor: 1, patch: 0 },
+    vendorVersion: "2.1",
+    releaseDate: "2026-04-28",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["windsurf-devin-terminal"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "windsurf",
+    version: "2.2",
+    semver: { major: 2, minor: 2, patch: 17 },
+    vendorVersion: "2.2.17",
+    releaseDate: "2026-05-06",
+    isCurrent: true,
+    isSupported: true,
+    featuresIntroduced: ["windsurf-devin-review"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
   },
 ];
 
@@ -535,6 +733,18 @@ export const CURSOR_FEATURES: FeatureFlag[] = [
     introducedIn: "1.7",
   },
   {
+    id: "cursor-subagents",
+    name: "Subagents",
+    description: "Independent specialised subagents (async in 2.5+)",
+    introducedIn: "2.4",
+  },
+  {
+    id: "cursor-image-generation",
+    name: "Image Generation",
+    description: "In-Editor image generation",
+    introducedIn: "2.4",
+  },
+  {
     id: "cursor-automations",
     name: "Automations",
     description:
@@ -548,10 +758,16 @@ export const CURSOR_FEATURES: FeatureFlag[] = [
     introducedIn: "2.5",
   },
   {
+    id: "cursor-sandbox-controls",
+    name: "Sandbox Controls",
+    description: ".cursor/sandbox.json network and permission controls",
+    introducedIn: "2.5",
+  },
+  {
     id: "cursor-self-hosted-agents",
     name: "Self-Hosted Agents",
     description: "Self-hosted cloud agents on own infrastructure",
-    introducedIn: "2.5",
+    introducedIn: "2.5.1",
   },
   {
     id: "cursor-worktrees",
@@ -583,6 +799,36 @@ export const CURSOR_FEATURES: FeatureFlag[] = [
     description: "Await tool for monitoring long-running jobs",
     introducedIn: "3.0",
   },
+  {
+    id: "cursor-pr-review-tabs",
+    name: "PR Review Tabs",
+    description: "Dedicated PR review surface integrated with Agents Window",
+    introducedIn: "3.1",
+  },
+  {
+    id: "cursor-build-in-parallel",
+    name: "Build in Parallel",
+    description: "Coordinate multiple agents building related work in parallel",
+    introducedIn: "3.2",
+  },
+  {
+    id: "cursor-multitask",
+    name: "Multitask",
+    description: "/multitask command to spawn multiple subagents at once",
+    introducedIn: "3.3",
+  },
+  {
+    id: "cursor-async-subagent-pinning",
+    name: "Async Subagent Pinning",
+    description: "Pin async subagents to specific tasks across sessions",
+    introducedIn: "3.3",
+  },
+  {
+    id: "cursor-split-changes-prs",
+    name: "Split Changes into PRs",
+    description: "Auto-split a long-running change into multiple PRs",
+    introducedIn: "3.3",
+  },
 ];
 
 export const CURSOR_BREAKING_CHANGES: BreakingChange[] = [
@@ -606,16 +852,11 @@ export const CURSOR_BREAKING_CHANGES: BreakingChange[] = [
     autoMigratable: true,
     transformFn: "convertToMdcFormat",
   },
-  {
-    id: "cursor-cloud-agents-removed",
-    type: "field_removed",
-    version: "3.0",
-    description: "Cloud agents removed from Editor in 3.0",
-    affected: "cloud agents",
-    migration:
-      "Use self-hosted agents (cursor-self-hosted-agents) or the new Agents Window (cursor-agents-window) instead",
-    autoMigratable: false,
-  },
+  // NOTE (audit 2026-05-14): `cursor-cloud-agents-removed` was fabricated.
+  // Cursor 3.0 introduced Agents Window + /worktree + /best-of-n; cloud
+  // agents were not removed (https://cursor.com/changelog/3-0). The earlier
+  // March 2026 self-hosted agents release added a deployment option; it did
+  // not remove anything.
 ];
 
 export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
@@ -729,7 +970,11 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
     releaseDate: "2026-01-22",
     isCurrent: false,
     isSupported: true,
-    featuresIntroduced: ["cursor-skills"],
+    featuresIntroduced: [
+      "cursor-skills",
+      "cursor-subagents",
+      "cursor-image-generation",
+    ],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
@@ -746,14 +991,27 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
     agent: "cursor",
     version: "2.5",
     semver: { major: 2, minor: 5, patch: 0 },
-    releaseDate: "2026-03-05",
+    releaseDate: "2026-02-17",
     isCurrent: false,
     isSupported: true,
     featuresIntroduced: [
       "cursor-automations",
       "cursor-marketplace-plugins",
-      "cursor-self-hosted-agents",
+      "cursor-sandbox-controls",
     ],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "cursor",
+    version: "2.5.1",
+    semver: { major: 2, minor: 5, patch: 1 },
+    releaseDate: "2026-03-25",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["cursor-self-hosted-agents"],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
@@ -764,7 +1022,7 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
     version: "3.0",
     semver: { major: 3, minor: 0, patch: 0 },
     releaseDate: "2026-04-02",
-    isCurrent: true,
+    isCurrent: false,
     isSupported: true,
     featuresIntroduced: [
       "cursor-worktrees",
@@ -775,7 +1033,7 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
     ],
     featuresDeprecated: [],
     featuresRemoved: [],
-    breakingChanges: ["cursor-cloud-agents-removed"],
+    breakingChanges: [],
     detectionMarkers: [
       {
         type: "field_present",
@@ -785,6 +1043,50 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
       },
     ],
   },
+  {
+    agent: "cursor",
+    version: "3.1",
+    semver: { major: 3, minor: 1, patch: 0 },
+    releaseDate: "2026-04-15",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["cursor-pr-review-tabs"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "cursor",
+    version: "3.2",
+    semver: { major: 3, minor: 2, patch: 0 },
+    releaseDate: "2026-04-28",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["cursor-build-in-parallel"],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
+  {
+    agent: "cursor",
+    version: "3.3",
+    semver: { major: 3, minor: 3, patch: 0 },
+    releaseDate: "2026-05-07",
+    isCurrent: true,
+    isSupported: true,
+    vendorVersion: "3.3",
+    featuresIntroduced: [
+      "cursor-multitask",
+      "cursor-async-subagent-pinning",
+      "cursor-split-changes-prs",
+    ],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [],
+  },
 ];
 
 // ============================================================================
@@ -792,34 +1094,87 @@ export const CURSOR_VERSIONS: VersionCatalogEntry[] = [
 // ============================================================================
 //
 // IMPORTANT: these are CACE internal compatibility epochs, not official Codex
-// CLI vendor semver releases. Codex's public release train is still 0.x (latest
-// 0.120.0 as of April 11, 2026). CACE uses a smaller set of milestones (1.0/
-// 1.1/1.2) for migration and adaptation logic. See
-// docs/research/repo-audit-2026-04-11.md for the audit reframe.
+// CLI vendor semver releases. Codex's public release train is still 0.x
+// (latest 0.130.0 as of 2026-05-08). CACE uses a smaller set of milestones
+// (1.0/1.1/1.2) for migration and adaptation logic; each epoch row carries a
+// `vendorVersion` field pinning the canonical Codex CLI minor it tracks.
+// See docs/research/repo-audit-2026-05-14.md for the latest audit.
 
 export const CODEX_FEATURES: FeatureFlag[] = [
   {
     id: "codex-ga",
-    name: "Feature Maturity",
-    description: "Codex matures as a stable product surface (npm versioning remains 0.x)",
+    name: "Codex GA Epoch",
+    description:
+      "CACE epoch representing the point where Codex became a stable compatibility surface (approval_policy, sandbox_mode, MCP, .codex/config.toml), while vendor releases remained 0.x",
+    introducedIn: "1.0",
+  },
+  {
+    id: "codex-approval-policy",
+    name: "Approval Policy",
+    description:
+      "approval_policy config — untrusted | on-request | never | granular",
+    introducedIn: "1.0",
+  },
+  {
+    id: "codex-sandbox-mode",
+    name: "Sandbox Mode",
+    description:
+      "sandbox_mode config — read-only | workspace-write | danger-full-access",
+    introducedIn: "1.0",
+  },
+  {
+    id: "codex-mcp",
+    name: "MCP Integration",
+    description: "Native MCP server integration",
+    introducedIn: "1.0",
+  },
+  {
+    id: "codex-subagents",
+    name: "Subagents",
+    description:
+      "Built-in subagents (default/worker/explorer) plus custom TOML subagents at .codex/agents/*.toml and ~/.codex/agents/*.toml",
     introducedIn: "1.0",
   },
   {
     id: "codex-agent-skills",
     name: "Agent Skills",
-    description: "Skill definitions in .agents/skills/<name>/SKILL.md",
+    description:
+      "Native skill definitions in .agents/skills/<name>/SKILL.md (project) and ~/.agents/skills/ (user)",
     introducedIn: "1.1",
   },
   {
     id: "codex-agents-guidance",
     name: "AGENTS.md Guidance Chain",
-    description: "Hierarchical project guidance via AGENTS.md and AGENTS.override.md",
+    description:
+      "Hierarchical project guidance via AGENTS.md and AGENTS.override.md (with project_doc_fallback_filenames + project_doc_max_bytes 32 KiB)",
     introducedIn: "1.2",
   },
   {
     id: "codex-team-config",
     name: "Team Config",
-    description: "Shared configuration via Codex home and team-level settings",
+    description:
+      "Shared configuration via Codex home (~/.codex) and team-level settings",
+    introducedIn: "1.2",
+  },
+  {
+    id: "codex-requirements",
+    name: "Admin Requirements (requirements.toml)",
+    description:
+      "Admin-enforced governance layer (allowlists for approval/sandbox/feature flags) — different from config.toml",
+    introducedIn: "1.2",
+  },
+  {
+    id: "codex-doc-fallback",
+    name: "Project Doc Fallback",
+    description:
+      "project_doc_fallback_filenames config — allows TEAM_GUIDE.md and other names to act as the AGENTS.md context file",
+    introducedIn: "1.2",
+  },
+  {
+    id: "codex-plugins",
+    name: "Plugin Marketplace",
+    description:
+      "First-class plugin marketplace (vendor 0.128.0+); plugin sharing in 0.130",
     introducedIn: "1.2",
   },
 ];
@@ -842,10 +1197,17 @@ export const CODEX_VERSIONS: VersionCatalogEntry[] = [
     agent: "codex",
     version: "1.0",
     semver: { major: 1, minor: 0, patch: 0 },
+    vendorVersion: "0.50",
     releaseDate: "2025-10-01",
     isCurrent: false,
     isSupported: true,
-    featuresIntroduced: ["codex-ga"],
+    featuresIntroduced: [
+      "codex-ga",
+      "codex-approval-policy",
+      "codex-sandbox-mode",
+      "codex-mcp",
+      "codex-subagents",
+    ],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
@@ -862,12 +1224,19 @@ export const CODEX_VERSIONS: VersionCatalogEntry[] = [
         weight: 4,
         indicatesVersionOrLater: true,
       },
+      {
+        type: "file_pattern",
+        pattern: "\\.codex/agents/.*\\.toml$",
+        weight: 6,
+        indicatesVersionOrLater: true,
+      },
     ],
   },
   {
     agent: "codex",
     version: "1.1",
     semver: { major: 1, minor: 1, patch: 0 },
+    vendorVersion: "0.100",
     releaseDate: "2025-12-01",
     isCurrent: false,
     isSupported: true,
@@ -888,10 +1257,17 @@ export const CODEX_VERSIONS: VersionCatalogEntry[] = [
     agent: "codex",
     version: "1.2",
     semver: { major: 1, minor: 2, patch: 0 },
+    vendorVersion: "0.130.0",
     releaseDate: "2026-01-01",
     isCurrent: true,
     isSupported: true,
-    featuresIntroduced: ["codex-agents-guidance", "codex-team-config"],
+    featuresIntroduced: [
+      "codex-agents-guidance",
+      "codex-team-config",
+      "codex-requirements",
+      "codex-doc-fallback",
+      "codex-plugins",
+    ],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: ["codex-custom-prompts-deprecated"],
@@ -902,73 +1278,13 @@ export const CODEX_VERSIONS: VersionCatalogEntry[] = [
         weight: 8,
         indicatesVersionOrLater: true,
       },
+      {
+        type: "file_pattern",
+        pattern: "(^|/)requirements\\.toml$",
+        weight: 6,
+        indicatesVersionOrLater: true,
+      },
     ],
-  },
-];
-
-// ============================================================================
-// Codex CLI Vendor Surface (informational — kept for vendor-feature lookups)
-// ============================================================================
-//
-// NOTE: this block previously declared a parallel set of 0.x "vendor" Codex
-// versions. Those were dropped during the April 11 audit (see
-// docs/research/repo-audit-2026-04-11.md): keeping two version sets confused
-// the catalog. The detailed feature flags below are retained because they
-// document vendor-surface knowledge used by the parser, renderer, and audit
-// engine. They are NOT enumerated as separate VersionCatalogEntry rows — the
-// CODEX_VERSIONS array above (1.0/1.1/1.2 epochs) is the single source of
-// truth for version-aware decisions.
-
-const _CODEX_VENDOR_FEATURE_REFERENCE: FeatureFlag[] = [
-  {
-    id: "codex-approval-policy",
-    name: "Approval Policy",
-    description:
-      "approval_policy config (untrusted/on-request/never/granular)",
-    introducedIn: "0.1",
-  },
-  {
-    id: "codex-sandbox-mode",
-    name: "Sandbox Mode",
-    description:
-      "sandbox_mode config (read-only/workspace-write/danger-full-access)",
-    introducedIn: "0.1",
-  },
-  {
-    id: "codex-agents-md",
-    name: "AGENTS.md",
-    description: "AGENTS.md + AGENTS.override.md guidance chain",
-    introducedIn: "0.1",
-  },
-  {
-    id: "codex-skills",
-    name: "Agent Skills",
-    description: "Agent Skills in .agents/skills/<name>/SKILL.md",
-    introducedIn: "0.1",
-  },
-  {
-    id: "codex-subagents",
-    name: "Subagents",
-    description: "Built-in (default/worker/explorer) + custom TOML agents",
-    introducedIn: "0.1",
-  },
-  {
-    id: "codex-mcp",
-    name: "MCP Integration",
-    description: "Native MCP server integration",
-    introducedIn: "0.1",
-  },
-  {
-    id: "codex-plugins",
-    name: "Plugin Marketplace",
-    description: "First-class plugin marketplace",
-    introducedIn: "0.2",
-  },
-  {
-    id: "codex-path-addressing",
-    name: "Path-Based Addressing",
-    description: "Path-based subagent addressing (/root/agent_a)",
-    introducedIn: "0.2",
   },
 ];
 
@@ -980,27 +1296,36 @@ export const GEMINI_FEATURES: FeatureFlag[] = [
   {
     id: "gemini-context",
     name: "Context Files",
-    description: "Hierarchical GEMINI.md context files",
+    description:
+      "Hierarchical GEMINI.md context files (workspace + ~/.gemini/GEMINI.md global)",
+    introducedIn: "0.1",
+  },
+  {
+    id: "gemini-context-filename-alias",
+    name: "Context Filename Alias",
+    description:
+      "context.fileName in ~/.gemini/settings.json — accepts AGENTS.md and CONTEXT.md as instruction file aliases alongside GEMINI.md",
     introducedIn: "0.1",
   },
   {
     id: "gemini-skills",
     name: "Agent Skills",
-    description: "Agent Skills in .gemini/skills/ and .agents/skills/",
+    description:
+      "Agent Skills in .gemini/skills/<name>/SKILL.md and .agents/skills/<name>/SKILL.md alias",
     introducedIn: "0.1",
   },
   {
     id: "gemini-subagents",
     name: "Custom Subagents",
     description:
-      "Custom subagents in .gemini/agents/*.md with YAML frontmatter",
+      "Custom subagents in .gemini/agents/*.md with YAML frontmatter (name, description, kind, tools, model, temperature, max_turns)",
     introducedIn: "0.1",
   },
   {
     id: "gemini-builtin-agents",
     name: "Built-in Agents",
     description:
-      "Built-in codebase_investigator/cli_help/generalist/browser agents",
+      "Built-in codebase_investigator / cli_help / generalist / browser_agent",
     introducedIn: "0.1",
   },
   {
@@ -1016,27 +1341,52 @@ export const GEMINI_FEATURES: FeatureFlag[] = [
     introducedIn: "0.1",
   },
   {
+    id: "gemini-settings",
+    name: "Settings",
+    description:
+      "~/.gemini/settings.json — security, experimental, context, mcpServers blocks",
+    introducedIn: "0.1",
+  },
+  {
+    id: "gemini-trusted-folders",
+    name: "Trusted Folders",
+    description:
+      "security.folderTrust + ~/.gemini/trustedFolders.json; untrusted folders skip .gemini/settings.json loading",
+    introducedIn: "0.1",
+  },
+  {
+    id: "gemini-custom-commands",
+    name: "Custom Commands",
+    description:
+      "Custom slash commands in .gemini/commands/*.toml (separate from skills)",
+    introducedIn: "0.1",
+  },
+  {
     id: "gemini-worktrees",
-    name: "Worktrees",
-    description: "Native git worktree support for parallel sessions",
+    name: "Worktrees (Experimental)",
+    description:
+      "Experimental git worktree support via experimental.worktrees: true and gemini --worktree/-w",
     introducedIn: "0.2",
   },
   {
     id: "gemini-sandboxing",
     name: "Sandboxing",
-    description: "macOS Seatbelt + Windows native sandboxing",
+    description:
+      "macOS Seatbelt (sandbox-exec), Windows icacls Low Mandatory Level, Linux gVisor/Docker/Podman/LXC",
     introducedIn: "0.2",
   },
   {
     id: "gemini-policy-engine",
     name: "Policy Engine",
-    description: "policy.toml with subagent-scoped rules",
+    description:
+      "~/.gemini/policies/*.toml directory of policy files with subagent-scoped rules",
     introducedIn: "0.2",
   },
   {
     id: "gemini-jit-context",
     name: "JIT Context",
-    description: "JIT context injection capped at git root",
+    description:
+      "JIT GEMINI.md context discovery up to the trusted-folder root (ancestor chain)",
     introducedIn: "0.2",
   },
 ];
@@ -1053,11 +1403,15 @@ export const GEMINI_VERSIONS: VersionCatalogEntry[] = [
     isSupported: true,
     featuresIntroduced: [
       "gemini-context",
+      "gemini-context-filename-alias",
       "gemini-skills",
       "gemini-subagents",
       "gemini-builtin-agents",
       "gemini-tool-isolation",
       "gemini-mcp",
+      "gemini-settings",
+      "gemini-trusted-folders",
+      "gemini-custom-commands",
     ],
     featuresDeprecated: [],
     featuresRemoved: [],
@@ -1075,6 +1429,12 @@ export const GEMINI_VERSIONS: VersionCatalogEntry[] = [
         weight: 6,
         indicatesVersionOrLater: true,
       },
+      {
+        type: "file_pattern",
+        pattern: "\\.gemini/settings\\.json$",
+        weight: 6,
+        indicatesVersionOrLater: true,
+      },
     ],
   },
   {
@@ -1082,7 +1442,7 @@ export const GEMINI_VERSIONS: VersionCatalogEntry[] = [
     version: "0.2",
     semver: { major: 0, minor: 2, patch: 0 },
     releaseDate: "2026-04-01",
-    isCurrent: true,
+    isCurrent: false,
     isSupported: true,
     featuresIntroduced: [
       "gemini-worktrees",
@@ -1090,6 +1450,27 @@ export const GEMINI_VERSIONS: VersionCatalogEntry[] = [
       "gemini-policy-engine",
       "gemini-jit-context",
     ],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "file_pattern",
+        pattern: "\\.gemini/policies/.*\\.toml$",
+        weight: 7,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "gemini",
+    version: "0.42",
+    semver: { major: 0, minor: 42, patch: 0 },
+    vendorVersion: "0.42.0",
+    releaseDate: "2026-05-12",
+    isCurrent: true,
+    isSupported: true,
+    featuresIntroduced: [],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
@@ -1106,50 +1487,62 @@ export const OPENCODE_FEATURES: FeatureFlag[] = [
     id: "opencode-skills",
     name: "Skills",
     description:
-      "Skills in .opencode/skills/, .claude/skills/, .agents/skills/",
+      "Skills in .opencode/skills/, .claude/skills/, .agents/skills/ (plus user-level equivalents under ~/.config/opencode, ~/.claude, ~/.agents). Vendor docs do not specify a precedence ordering across the three roots.",
     introducedIn: "1.0",
   },
   {
     id: "opencode-agents-md",
     name: "AGENTS.md",
-    description: "AGENTS.md as primary rules, CLAUDE.md fallback",
+    description:
+      "AGENTS.md as primary rules (precedence over CLAUDE.md when both present)",
     introducedIn: "1.0",
   },
   {
     id: "opencode-claude-compat",
     name: "Claude Code Compatibility",
     description:
-      "Claude Code compatibility (.claude/ paths, env vars to disable)",
+      "Claude Code compatibility — reads ~/.claude/CLAUDE.md (toggleable) and .claude/skills/",
     introducedIn: "1.0",
   },
   {
     id: "opencode-external-instructions",
     name: "External Instructions",
-    description: "opencode.json with glob/URL instruction sources",
+    description:
+      "opencode.json instructions field — accepts file paths and glob patterns (URL sources not documented as supported)",
     introducedIn: "1.0",
   },
   {
     id: "opencode-subagents",
     name: "Subagents",
-    description: "Subagent support",
+    description:
+      "Subagents at .opencode/agents/<name>.md (project) and ~/.config/opencode/agents/<name>.md (user). Frontmatter requires mode: subagent.",
     introducedIn: "1.2",
   },
   {
+    id: "opencode-permission-tristate",
+    name: "Permission Tri-State",
+    description:
+      "Subagent permission frontmatter — allow | deny | ask per tool key (read, edit, bash, webfetch, glob, grep), glob patterns supported (e.g. \"git *\": \"ask\")",
+    introducedIn: "1.2",
+  },
+  {
+    id: "opencode-mcp",
+    name: "MCP Servers",
+    description: "MCP servers as first-class config in opencode.json",
+    introducedIn: "1.0",
+  },
+  {
     id: "opencode-plugins",
-    name: "TUI Plugins",
-    description: "TUI plugin system",
+    name: "Plugins",
+    description:
+      "Plugin system — JS/TS modules with event hooks (session compaction, tui.prompt.append, tui.command.execute, tui.toast.show), custom tools",
     introducedIn: "1.3",
   },
   {
     id: "opencode-gitlab",
     name: "GitLab Integration",
-    description: "GitLab Agent Platform integration",
-    introducedIn: "1.3",
-  },
-  {
-    id: "opencode-session-review",
-    name: "Session Review",
-    description: "Git-backed session review",
+    description:
+      "GitLab Duo integration — @opencode mentions, issue triage, MR creation, code review",
     introducedIn: "1.3",
   },
 ];
@@ -1169,6 +1562,7 @@ export const OPENCODE_VERSIONS: VersionCatalogEntry[] = [
       "opencode-agents-md",
       "opencode-claude-compat",
       "opencode-external-instructions",
+      "opencode-mcp",
     ],
     featuresDeprecated: [],
     featuresRemoved: [],
@@ -1189,7 +1583,31 @@ export const OPENCODE_VERSIONS: VersionCatalogEntry[] = [
     releaseDate: "2025-12-01",
     isCurrent: false,
     isSupported: true,
-    featuresIntroduced: ["opencode-subagents"],
+    featuresIntroduced: [
+      "opencode-subagents",
+      "opencode-permission-tristate",
+    ],
+    featuresDeprecated: [],
+    featuresRemoved: [],
+    breakingChanges: [],
+    detectionMarkers: [
+      {
+        type: "field_present",
+        field: "mode",
+        value: "subagent",
+        weight: 8,
+        indicatesVersionOrLater: true,
+      },
+    ],
+  },
+  {
+    agent: "opencode",
+    version: "1.3",
+    semver: { major: 1, minor: 3, patch: 0 },
+    releaseDate: "2026-03-22",
+    isCurrent: false,
+    isSupported: true,
+    featuresIntroduced: ["opencode-plugins", "opencode-gitlab"],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
@@ -1197,16 +1615,13 @@ export const OPENCODE_VERSIONS: VersionCatalogEntry[] = [
   },
   {
     agent: "opencode",
-    version: "1.3",
-    semver: { major: 1, minor: 3, patch: 0 },
-    releaseDate: "2026-03-22",
+    version: "1.14",
+    semver: { major: 1, minor: 14, patch: 50 },
+    vendorVersion: "1.14.50",
+    releaseDate: "2026-05-14",
     isCurrent: true,
     isSupported: true,
-    featuresIntroduced: [
-      "opencode-plugins",
-      "opencode-gitlab",
-      "opencode-session-review",
-    ],
+    featuresIntroduced: [],
     featuresDeprecated: [],
     featuresRemoved: [],
     breakingChanges: [],
