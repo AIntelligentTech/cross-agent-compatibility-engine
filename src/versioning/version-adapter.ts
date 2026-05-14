@@ -103,21 +103,10 @@ const CURSOR_ADAPTERS: Record<string, AdapterFunction> = {
 // Windsurf Adapters
 // ============================================================================
 
-const WINDSURF_ADAPTERS: Record<string, AdapterFunction> = {
-  /**
-   * Migrate skill location for wave-10+
-   */
-  migrateWindsurfSkillLocation: (content, frontmatter) => {
-    return {
-      content,
-      frontmatter,
-      transformation: "",
-      warning:
-        "Skills should be moved to .windsurf/skills/<name>/SKILL.md format",
-    };
-  },
-
-};
+// NOTE (audit 2026-05-14): the `migrateWindsurfSkillLocation` adapter was
+// tied to a fabricated breaking change. Skills did not exist before Wave 13
+// (2025-12-24); there was no prior location to migrate from. Adapter removed.
+const WINDSURF_ADAPTERS: Record<string, AdapterFunction> = {};
 
 // ============================================================================
 // Adapter Registry
@@ -259,6 +248,22 @@ function applyUpgradeAdaptations(
           Object.assign(frontmatter, result.frontmatter);
           transformations.push(result.transformation);
         }
+      }
+    }
+  }
+
+  // Windsurf-specific upgrades
+  if (agent === "windsurf") {
+    // Add auto_execution_mode when upgrading to wave-8 through wave-13.
+    // auto_execution_mode is a legacy field deprecated in wave-14+.
+    if (
+      compareVersions(agent, toVersion, "wave-8") >= 0 &&
+      compareVersions(agent, toVersion, "wave-14") < 0
+    ) {
+      const result = agentAdapters["addAutoExecutionMode"]?.("", frontmatter);
+      if (result?.transformation) {
+        Object.assign(frontmatter, result.frontmatter);
+        transformations.push(result.transformation);
       }
     }
   }

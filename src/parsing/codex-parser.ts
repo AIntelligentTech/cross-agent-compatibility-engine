@@ -13,6 +13,7 @@ interface CodexFrontmatter {
   description?: string;
   version?: string;
   model?: string;
+  // on-failure is deprecated in v0.118+; granular object also accepted at runtime
   approval_policy?: "untrusted" | "on-failure" | "on-request" | "never";
   sandbox_mode?: "read-only" | "workspace-write" | "danger-full-access";
   web_search?: "disabled" | "cached" | "live";
@@ -40,9 +41,10 @@ export class CodexParser extends BaseParser {
   canParse(content: string, filename?: string): boolean {
     // Check filename patterns first
     if (filename) {
+      // .agents/skills/ is the Codex native skills path (CACE epoch 1.1+)
       if (filename.includes(".agents/skills/")) return true;
       if (filename.includes(".codex/")) return true;
-      if (filename.includes("CODEX.md")) return true;
+      if (filename.endsWith("CODEX.md")) return true;
     }
 
     // Check content patterns

@@ -4,6 +4,8 @@
 **Updated:** 2026-03-13  
 **Purpose:** Distill how compatibility across the agent scaffoldings tracked by CACE changed over time, based on public documentation, changelogs, and repository material.
 
+> **Status note (April 11, 2026):** this document is intentionally historical. Where it references CACE version catalog entries such as `1.0`, `1.1`, or `1.2` for Codex, those are compatibility epochs used by CACE, not official vendor semver identifiers. For the current vendor-verified state, use [`repo-audit-2026-04-11.md`](./repo-audit-2026-04-11.md).
+
 ---
 
 ## Executive Summary

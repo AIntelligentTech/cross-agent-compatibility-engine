@@ -12,7 +12,7 @@ interface CodexFrontmatter {
   description?: string;
   version?: string;
   model?: string;
-  approval_policy?: string;
+  approval_policy?: string | Record<string, unknown>;
   sandbox_mode?: string;
   web_search?: string;
   mcp_servers?: Record<string, unknown>;
@@ -184,15 +184,31 @@ export class CodexValidator extends BaseValidator {
 
     // Validate approval policy
     if (fm.approval_policy) {
-      const validPolicies = ["untrusted", "on-failure", "on-request", "never"];
-      if (!validPolicies.includes(fm.approval_policy)) {
+      // on-failure is deprecated in Codex CLI v0.118+; granular is an object type handled separately
+      const validPolicies = ["untrusted", "on-request", "never"];
+      const deprecatedPolicies = ["on-failure"];
+
+      if (typeof fm.approval_policy === "string" && deprecatedPolicies.includes(fm.approval_policy)) {
+        warnings.push(
+          this.createIssue(
+            "DEPRECATED_APPROVAL_POLICY",
+            `approval_policy "${fm.approval_policy}" is deprecated in Codex CLI v0.118+`,
+            "warning",
+            "approval_policy",
+            `Use one of: ${validPolicies.join(", ")} or a granular object`
+          )
+        );
+      } else if (
+        typeof fm.approval_policy === "string" &&
+        !validPolicies.includes(fm.approval_policy)
+      ) {
         issues.push(
           this.createIssue(
             "INVALID_APPROVAL_POLICY",
             `Invalid approval_policy: ${fm.approval_policy}`,
             "error",
             "approval_policy",
-            `Valid values: ${validPolicies.join(", ")}`
+            `Valid values: ${validPolicies.join(", ")} or a granular object`
           )
         );
       } else if (fm.approval_policy === "on-failure") {
@@ -205,6 +221,33 @@ export class CodexValidator extends BaseValidator {
             "Use on-request for interactive runs or never for non-interactive runs"
           )
         );
+      } else if (typeof fm.approval_policy === "object" && fm.approval_policy !== null) {
+        const granular = (fm.approval_policy as Record<string, unknown>).granular;
+        if (!granular || typeof granular !== "object") {
+          issues.push(
+            this.createIssue(
+              "INVALID_GRANULAR_POLICY",
+              "Granular approval_policy must have a 'granular' key with an object value",
+              "error",
+              "approval_policy"
+            )
+          );
+        } else {
+          const validKeys = ["sandbox_approval", "rules", "mcp_elicitations", "request_permissions", "skill_approval"];
+          const granularObj = granular as Record<string, unknown>;
+          for (const key of validKeys) {
+            if (key in granularObj && typeof granularObj[key] !== "boolean") {
+              warnings.push(
+                this.createIssue(
+                  "INVALID_GRANULAR_POLICY_VALUE",
+                  `Granular policy key "${key}" should be a boolean`,
+                  "warning",
+                  "approval_policy"
+                )
+              );
+            }
+          }
+        }
       }
     }
 

@@ -9,8 +9,11 @@ describe("Codex Parser", () => {
   const parser = new CodexParser();
 
   describe("canParse", () => {
-    it("should detect Codex skills by filename", () => {
+    it("should detect Codex skills by .agents/skills/ filename (native path)", () => {
       expect(parser.canParse("", ".agents/skills/my-skill/SKILL.md")).toBe(true);
+    });
+
+    it("should detect Codex skills by legacy .codex/skills/ filename", () => {
       expect(parser.canParse("", ".codex/skills/my-skill/SKILL.md")).toBe(true);
       expect(parser.canParse("", ".codex/commands/my-command.md")).toBe(true);
     });

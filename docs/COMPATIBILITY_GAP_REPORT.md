@@ -1,5 +1,7 @@
 # Cross-Agent Compatibility Gap Report
 
+> **Status note (April 11, 2026):** this file is now a historical analysis snapshot, not the canonical current research source. Some conclusions below are outdated, especially around Codex skills and Gemini CLI artifact support. Use [`docs/research/repo-audit-2026-04-11.md`](./research/repo-audit-2026-04-11.md) and [`docs/research/agent-artifact-compatibility-matrix.md`](./research/agent-artifact-compatibility-matrix.md) for the current vendor-verified view.
+
 **Document Version:** 2.5.0  
 **Report Date:** 2026-01-30  
 **Canonical Standard:** Claude Code  

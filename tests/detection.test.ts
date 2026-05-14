@@ -271,14 +271,39 @@ Some instructions.
     expect(agent).toBe("codex");
   });
 
-  test("should detect Codex skills in .agents/skills", () => {
+  test("should detect Codex from .agents/skills/ path", () => {
     const content = `---
-name: codex-review
-description: Review code
+name: my-skill
+description: A skill
 ---
 
-Review the codebase carefully.`;
-    const agent = detectAgent(content, ".agents/skills/codex-review/SKILL.md");
+Body content.
+`;
+    const agent = detectAgent(content, ".agents/skills/my-skill/SKILL.md");
     expect(agent).toBe("codex");
+  });
+
+  test("should detect Gemini from .gemini/ path", () => {
+    const content = `---
+name: gemini-skill
+description: A Gemini skill
+---
+
+Body content.
+`;
+    const agent = detectAgent(content, ".gemini/skills/gemini-skill/SKILL.md");
+    expect(agent).toBe("gemini");
+  });
+
+  test("should detect Gemini from .gemini/agents/ path", () => {
+    const content = `---
+name: codebase-agent
+description: Investigate the codebase
+---
+
+Body.
+`;
+    const agent = detectAgent(content, ".gemini/agents/codebase-agent.md");
+    expect(agent).toBe("gemini");
   });
 });

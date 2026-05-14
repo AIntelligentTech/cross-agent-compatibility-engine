@@ -29,20 +29,20 @@ describe("Version Adapter", () => {
   });
 
   describe("getDefaultTargetVersion", () => {
-    test("returns current Claude version", () => {
-      expect(getDefaultTargetVersion("claude")).toBe("2.1");
+    test("returns current Claude version (2.1.141)", () => {
+      expect(getDefaultTargetVersion("claude")).toBe("2.1.141");
     });
 
-    test("returns current Windsurf version", () => {
-      expect(getDefaultTargetVersion("windsurf")).toBe("wave-13");
+    test("returns current Windsurf version (2.2)", () => {
+      expect(getDefaultTargetVersion("windsurf")).toBe("2.2");
     });
 
-    test("returns current Cursor version", () => {
-      expect(getDefaultTargetVersion("cursor")).toBe("2.4");
+    test("returns current Cursor version (3.3)", () => {
+      expect(getDefaultTargetVersion("cursor")).toBe("3.3");
     });
 
-    test("returns fallback for unknown agent", () => {
-      expect(getDefaultTargetVersion("gemini")).toBe("1.0");
+    test("returns current Gemini version (0.42)", () => {
+      expect(getDefaultTargetVersion("gemini")).toBe("0.42");
     });
   });
 
@@ -109,6 +109,17 @@ Content here.
 `;
         const result = adaptVersion("windsurf", content, "wave-1", "wave-8");
         expect(result.content).toContain("auto_execution_mode: 2");
+      });
+
+      test("does not add auto_execution_mode when upgrading to wave-14+", () => {
+        const content = `---
+description: My wave-14 workflow
+---
+
+Content for wave-14 test.
+`;
+        const result = adaptVersion("windsurf", content, "wave-1", "wave-14");
+        expect(result.content).not.toContain("auto_execution_mode");
       });
     });
 

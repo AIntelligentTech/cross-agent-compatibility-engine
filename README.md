@@ -1,4 +1,4 @@
-# CACE (Cross-Agent Compatibility Engine) v2.5.5
+# CACE (Cross-Agent Compatibility Engine) v2.6.0
 
 [![CI](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/AIntelligentTech/cace-cli/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/cace-cli.svg)](https://www.npmjs.com/package/cace-cli)
@@ -8,13 +8,15 @@
 
 **🚀 Version-aware cross-agent compatibility tool with automatic agent detection!**
 
+> **Status note (May 14, 2026):** the canonical audit of verified vs inferred agent compatibility is now [`docs/research/repo-audit-2026-05-14.md`](./docs/research/repo-audit-2026-05-14.md) — a comprehensive evidence-based comparison against current vendor docs as of 2026-05-14. The earlier [`docs/research/repo-audit-2026-04-11.md`](./docs/research/repo-audit-2026-04-11.md) remains for historical context but the May 14 audit supersedes it. Older release summaries and gap reports remain in-tree for historical context and are not current vendor truth.
+
 Convert and validate AI agent components between **6 major agents**: Claude Code, OpenCode, Cursor, Windsurf, **OpenAI Codex**, and **Google Gemini** with version compatibility knowledge and beautiful visual outputs.
 
 **Now integrated with [Business OS v9.6+](https://github.com/AIntelligentTech/business-os)** for automatic cross-agent scaffolding generation.
 
 ---
 
-## ✨ What's New in v2.3.0
+## ✨ Current Feature Highlights
 
 ### 🧙 Multi-Select Wizard Mode (NEW!)
 The ultimate way to manage complex multi-agent operations with an intuitive arrow-key interface:

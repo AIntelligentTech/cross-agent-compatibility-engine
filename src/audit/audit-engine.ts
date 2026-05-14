@@ -280,20 +280,29 @@ const AGENT_KNOWLEDGE_BASE: Record<string, AgentKnowledge> = {
     ],
   },
   codex: {
-    latestVersion: "1.0.0",
-    deprecatedFeatures: [],
+    latestVersion: "0.2",
+    deprecatedFeatures: [
+      "on-failure approval_policy (use on-request instead)",
+      ".codex/skills/ skill path (use .agents/skills/ instead)",
+    ],
     bestPractices: [
-      "Use config.toml for MCP servers",
-      "Configure approval policies",
-      "Set up sandbox modes",
+      "Place skills in .agents/skills/<name>/SKILL.md",
+      "Use AGENTS.md for durable project guidance",
+      "Configure subagents in .codex/agents/ as TOML",
+      "Set approval_policy: untrusted, on-request, or never",
+      "Set sandbox_mode: read-only, workspace-write, or danger-full-access",
     ],
     newFeatures: [
-      "MCP server support",
-      "Web search capabilities",
+      "First-class plugins support via /plugins",
+      "MCP native support",
+      ".agents/skills/ native path",
+      "AGENTS.override.md for local overrides",
+      "Protected paths: .git, .agents, .codex",
     ],
     antiPatterns: [
-      "Missing config.toml",
-      "No approval policies",
+      "Using deprecated .codex/skills/ skill path",
+      "Using deprecated on-failure approval_policy",
+      "No approval policies configured",
     ],
   },
   opencode: {

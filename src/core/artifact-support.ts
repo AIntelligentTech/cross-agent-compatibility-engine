@@ -10,39 +10,58 @@ export interface ArtifactSupport {
 
 export type AgentArtifactSupport = Partial<Record<ComponentType, ArtifactSupport>>;
 
+// Support levels are calibrated against the 2026-05-14 audit
+// (docs/research/repo-audit-2026-05-14.md). Notes:
+// - claude.memory and claude.rule render: "native" — CLAUDE.md is plain
+//   Markdown with @import; .claude/rules/*.md is plain Markdown with paths
+//   frontmatter. There is no technical reason CACE cannot render either.
+// - windsurf.skill render: "native" — Agent Skills shipped natively at
+//   .windsurf/skills/<name>/SKILL.md in Wave 13 (2025-12-24).
+// - AGENTS.md ("memory") is supported across Cursor, Windsurf, Codex,
+//   Gemini, and OpenCode as a universal-discovery instruction file. CACE
+//   parses and renders this for every agent that documents the surface.
+// - codex.command/codex.rule and gemini.skill/gemini.command remain
+//   "degraded": CACE represents them as markdown artifacts, but the vendor
+//   surfaces are less canonical than the parse/render machinery assumes.
 export const AGENT_ARTIFACT_SUPPORT: Record<AgentId, AgentArtifactSupport> = {
   claude: {
     skill: { parse: "native", render: "native", validate: true },
     hook: { parse: "native", render: "native", validate: true },
-    memory: { parse: "native", render: "none", validate: true },
-    rule: { parse: "native", render: "none", validate: true },
+    memory: { parse: "native", render: "native", validate: true },
+    rule: { parse: "native", render: "native", validate: true },
+    agent: { parse: "native", render: "native", validate: true },
   },
   windsurf: {
     workflow: { parse: "native", render: "native", validate: true },
     rule: { parse: "native", render: "native", validate: true },
     hook: { parse: "native", render: "native", validate: true },
-    skill: { parse: "native", render: "degraded", validate: true },
+    skill: { parse: "native", render: "native", validate: true },
+    memory: { parse: "native", render: "native", validate: true },
   },
   cursor: {
-    skill: { parse: "native", render: "native", validate: true },
-    command: { parse: "native", render: "native", validate: true },
-    rule: { parse: "native", render: "degraded", validate: true },
-  },
-  opencode: {
-    skill: { parse: "native", render: "native", validate: true },
-    command: { parse: "native", render: "native", validate: true },
-    agent: { parse: "native", render: "native", validate: false },
-  },
-  codex: {
     skill: { parse: "native", render: "native", validate: true },
     command: { parse: "native", render: "native", validate: true },
     rule: { parse: "native", render: "native", validate: true },
     memory: { parse: "native", render: "native", validate: true },
   },
-  gemini: {
+  opencode: {
     skill: { parse: "native", render: "native", validate: true },
     command: { parse: "native", render: "native", validate: true },
+    agent: { parse: "native", render: "native", validate: true },
     memory: { parse: "native", render: "native", validate: true },
+  },
+  codex: {
+    skill: { parse: "native", render: "native", validate: true },
+    command: { parse: "degraded", render: "degraded", validate: true },
+    rule: { parse: "degraded", render: "degraded", validate: true },
+    memory: { parse: "native", render: "native", validate: true },
+    agent: { parse: "degraded", render: "degraded", validate: true },
+  },
+  gemini: {
+    skill: { parse: "degraded", render: "degraded", validate: true },
+    command: { parse: "degraded", render: "degraded", validate: true },
+    memory: { parse: "native", render: "native", validate: true },
+    agent: { parse: "native", render: "native", validate: true },
   },
   universal: {
     memory: { parse: "native", render: "native", validate: false },

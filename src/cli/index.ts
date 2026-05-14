@@ -1015,8 +1015,11 @@ program
     console.log();
     console.log(chalk.gray("   Legend: " + chalk.green("≥90% Excellent") + "  " + chalk.yellow("≥80% Good") + "  " + chalk.red("<80% Review needed")));
     console.log(chalk.gray("   * Scores are artifact-aware and this matrix is shown for skill-style conversions"));
-    console.log(chalk.gray("   * OpenCode supports Claude Code fallbacks for rules and skills"));
-    console.log(chalk.gray("   * Cursor 2.4+ natively reads Agent Skills"));
+    console.log(chalk.gray("   * OpenCode reads .opencode/skills/, .claude/skills/, and .agents/skills/"));
+    console.log(chalk.gray("   * Cursor 3.0 supports Agent Skills, /worktree, automations, and Design Mode"));
+    console.log(chalk.gray("   * Windsurf wave-14 reads .agents/skills/ and optionally .claude/skills/"));
+    console.log(chalk.gray("   * Codex uses .agents/skills/ natively and AGENTS.md for guidance"));
+    console.log(chalk.gray("   * Gemini CLI uses .gemini/skills/ and .agents/skills/ alias"));
     console.log();
     console.log(chalk.blue.bold("🧩 Artifact Support Matrix\n"));
     console.log(chalk.gray("   Parse/Render/Validate capability by agent and component type\n"));
@@ -1285,17 +1288,20 @@ function showAgentGuidance(agent: AgentId, componentType: string): void {
       skill: [
         "Place skills in .agents/skills/<name>/SKILL.md",
         "Use AGENTS.md or AGENTS.override.md for durable project guidance",
+        "Configure subagents in .codex/agents/ as TOML",
         "Configure MCP servers in config.toml",
-        "Set appropriate 'approval_policy'",
-        "Choose correct 'sandbox_mode'",
+        "Plugins available via /plugins command",
+        "Set appropriate 'approval_policy' (untrusted, on-request, never)",
+        "Choose correct 'sandbox_mode' (read-only, workspace-write, danger-full-access)",
       ],
     },
     gemini: {
       skill: [
         "Place skills in .gemini/skills/<name>/SKILL.md",
-        "Use 'code_execution' for running code",
+        "Define subagents in .gemini/agents/*.md",
+        "Use GEMINI.md for project context",
         "Enable 'google_search' for web access",
-        "Set appropriate 'temperature' (0.0-2.0)",
+        "Use 'code_execution' for running code",
       ],
     },
     universal: { skill: [] },
@@ -1375,13 +1381,25 @@ function getScaffoldPaths(agent: AgentId, basePath: string, isUserLevel: boolean
       if (isUserLevel) {
         paths.push(join(basePath, ".codex"));
         paths.push(join(basePath, ".agents", "skills"));
+        paths.push(join(basePath, ".codex", "agents"));
       } else {
         paths.push(".agents/skills");
         paths.push(".codex");
+        paths.push(".codex/agents");
+      }
+      break;
+    case "gemini":
+      if (isUserLevel) {
+        paths.push(join(basePath, ".gemini"));
+        paths.push(join(basePath, ".gemini", "skills"));
+        paths.push(join(basePath, ".gemini", "agents"));
+      } else {
+        paths.push(".gemini/skills");
+        paths.push(".gemini/agents");
       }
       break;
   }
-  
+
   return paths;
 }
 
@@ -1432,7 +1450,13 @@ function generateExampleComponent(
     case "codex":
       if (type === "skill") {
         path = join(basePath, ".agents", "skills", name, "SKILL.md");
-        content = `---\nname: ${name}\ndescription: Example ${name} skill\napproval_policy: on-request\nsandbox_mode: workspace-write\n---\n\n# ${name}\n\nAdd Codex skill instructions here.\n`;
+        content = `---\nname: ${name}\ndescription: Example ${name} skill\napproval_policy: on-request\nsandbox_mode: workspace-write\n---\n\nThis is an example Codex skill for ${name}.\nAdd your instructions here.\n`;
+      }
+      break;
+    case "gemini":
+      if (type === "skill") {
+        path = join(basePath, ".gemini", "skills", name, "SKILL.md");
+        content = `---\nname: ${name}\ndescription: Example ${name} skill\n---\n\nThis is an example Gemini CLI skill for ${name}.\nAdd your instructions here.\n`;
       }
       break;
   }
@@ -1494,10 +1518,11 @@ function detectAgentFromPath(path: string): AgentId | null {
   if (path.includes(".cursor")) return "cursor";
   if (path.includes(".windsurf")) return "windsurf";
   if (path.includes(".opencode")) return "opencode";
+  if (path.includes(".gemini") || path.endsWith("GEMINI.md")) return "gemini";
+  // .agents/skills/ is primarily the Codex native path
   if (path.includes(".agents/skills/")) return "codex";
   if (path.includes(".codex") || path.endsWith("CODEX.md")) return "codex";
-  if (path.includes(".gemini") || path.endsWith("GEMINI.md")) return "gemini";
-  if (path.includes("AGENTS.md")) return "universal";
+  if (path.endsWith("AGENTS.md")) return "universal";
   return null;
 }
 
